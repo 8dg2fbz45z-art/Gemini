@@ -19,9 +19,6 @@ import {
   generateWeeklyDigest,
 } from './services/llmProcessor.js';
 
-await initializeDatabase();
-pruneExcessArticlesPerCategory(15);
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -873,8 +870,14 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
-app.listen(PORT, async () => {
-  console.log(`CrimsonBrief API Server listening on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`CrimsonBrief API Server listening on http://0.0.0.0:${PORT}`);
+  try {
+    await initializeDatabase();
+    pruneExcessArticlesPerCategory(15);
+  } catch (err) {
+    console.error('[CrimsonBrief Init] Database initialization error:', err.message);
+  }
   // Automatically refresh on startup if database is empty, never refreshed, > 6 hours old, or new feeds were added
   const articleCount = db.prepare('SELECT COUNT(*) as cnt FROM articles').get().cnt;
   const lastRefresh = getSetting('last_rss_refresh');

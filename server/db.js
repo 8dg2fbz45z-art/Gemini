@@ -261,6 +261,11 @@ const SCHEMA_STATEMENTS = [
   )`,
 ];
 
+// Immediately ensure local SQLite tables exist synchronously on module load
+for (const stmt of SCHEMA_STATEMENTS) {
+  rawDb.exec(stmt);
+}
+
 /**
  * Pulls all permanent user state (bookmarks, glossary concepts, notes, settings, firms, articles)
  * from Turso Cloud into the local SQLite engine when the container boots up on Render.
