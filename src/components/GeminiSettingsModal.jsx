@@ -253,12 +253,15 @@ export default function GeminiSettingsModal({
             <div className="flex items-center justify-between text-xs">
               <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-200">
                 <Rss className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Verified Public Feeds Active: {publicRssSources.length}</span>
+                <span>Live Official News &amp; Regulatory RSS Feeds: {publicRssSources.length} (100% Real Articles)</span>
               </span>
               <span className="text-slate-500">
                 Auto-refresh: Every 6 hours
               </span>
             </div>
+            <p className="text-[11px] text-slate-500">
+              Sources: SEC.gov, FederalReserve.gov, NYTimes DealBook, CNBC, SCOTUSblog, HLS Corporate Governance Forum &amp; Google News Legal/India Wires.
+            </p>
             <p className="text-[11px] text-slate-500">
               Last Synced:{' '}
               {aiStatus?.lastRssRefresh

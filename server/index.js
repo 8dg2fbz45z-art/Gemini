@@ -874,10 +874,22 @@ cron.schedule('0 */6 * * *', async () => {
 
 app.listen(PORT, async () => {
   console.log(`CrimsonBrief API Server listening on http://localhost:${PORT}`);
-  // Automatically refresh on startup if never refreshed or if last refresh was > 6 hours ago
+  // Automatically refresh on startup if database is empty, never refreshed, > 6 hours old, or new feeds were added
+  const articleCount = db.prepare('SELECT COUNT(*) as cnt FROM articles').get().cnt;
   const lastRefresh = getSetting('last_rss_refresh');
+  const rawStats = getSetting('last_rss_stats');
+  let feedsAttemptedLast = 0;
+  try {
+    if (rawStats) feedsAttemptedLast = JSON.parse(rawStats).feedsAttempted || 0;
+  } catch {
+    // ignore
+  }
   const sixHoursMs = 6 * 60 * 60 * 1000;
-  const isStale = !lastRefresh || Date.now() - new Date(lastRefresh).getTime() > sixHoursMs;
+  const isStale =
+    articleCount === 0 ||
+    feedsAttemptedLast < PUBLIC_RSS_SOURCES.length ||
+    !lastRefresh ||
+    Date.now() - new Date(lastRefresh).getTime() > sixHoursMs;
 
   if (isStale) {
     ingestLivePublicFeeds()

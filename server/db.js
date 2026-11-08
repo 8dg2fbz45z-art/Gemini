@@ -133,65 +133,10 @@ export function initializeDatabase() {
     }
   }
 
-  // Upsert Sample Baseline Articles and their Cached Analyses
-  const upsertArticle = db.prepare(`
-    INSERT INTO articles (
-      id, title, url, source_name, source_type, author,
-      published_at, fetched_at, category_id, significance_score,
-      why_this_matters, summary, content_raw, is_sample,
-      is_faculty_authored, contributor_type, verified_professor_id,
-      story_cluster_id, matched_firms_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title,
-      significance_score = excluded.significance_score,
-      why_this_matters = excluded.why_this_matters,
-      summary = excluded.summary,
-      matched_firms_json = excluded.matched_firms_json,
-      story_cluster_id = excluded.story_cluster_id,
-      verified_professor_id = excluded.verified_professor_id
-  `);
-
-  const upsertAnalysis = db.prepare(`
-    INSERT INTO article_analyses (article_id, model_used, generated_at, analysis_json)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(article_id) DO UPDATE SET
-      analysis_json = excluded.analysis_json
-  `);
+  // Ensure zero sample/synthetic articles exist — 100% of articles must come from real live RSS feeds
+  db.prepare('DELETE FROM articles WHERE is_sample = 1').run();
 
   const nowIso = new Date().toISOString();
-  for (const item of SAMPLE_BASELINE_ARTICLES) {
-    upsertArticle.run(
-      item.id,
-      item.title,
-      item.url,
-      item.sourceName,
-      item.sourceType,
-      item.author,
-      item.publishedAt,
-      nowIso,
-      item.categoryId,
-      item.significanceScore,
-      item.whyThisMatters,
-      item.summary,
-      item.analysis.detailedOverview.narrative.join('\n\n'),
-      item.isSample ? 1 : 0,
-      item.isFacultyAuthored ? 1 : 0,
-      item.isFacultyAuthored ? 'verified_hls_faculty' : 'regulatory_or_journalism',
-      item.verifiedProfessorId || null,
-      item.storyClusterId || null,
-      JSON.stringify(item.matchedFirms || [])
-    );
-
-    if (item.analysis) {
-      upsertAnalysis.run(
-        item.id,
-        item.analysis.modelUsed,
-        item.analysis.generatedAt,
-        JSON.stringify(item.analysis)
-      );
-    }
-  }
 
   // Seed initial glossary concepts if empty so Progressive Learning is immediately demonstrable
   const glossaryCount = db.prepare('SELECT COUNT(*) as count FROM glossary_concepts').get().count;
