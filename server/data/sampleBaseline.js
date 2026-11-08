@@ -977,4 +977,129 @@ export const SAMPLE_BASELINE_ARTICLES = [
       }
     }
   },
+  {
+    id: 'sample-intl-india-geopolitics-1',
+    title: 'US–India Strategic Cross-Border Corridor & Global Trade Realignment: Supreme Court of India Arbitral Enforcement, SEBI FPI Reforms, and CFIUS Technology Screening',
+    url: 'https://www.reuters.com/world/india/',
+    sourceName: 'Global Geopolitics, Sovereign Trade & Indian Legal Monitor',
+    sourceType: 'journalism',
+    author: 'International Economic & Indian Law Desk',
+    publishedAt: '2026-11-08T08:30:00Z',
+    categoryId: 'general-international',
+    significanceScore: 98,
+    isSample: true,
+    isFacultyAuthored: false,
+    verifiedProfessorId: null,
+    storyClusterId: 'cluster-us-india-geopolitics-trade',
+    matchedFirms: ['sullivan-cromwell', 'latham-watkins', 'cleary-gottlieb', 'skadden', 'kirkland-ellis'],
+    whyThisMatters:
+      'Combines international geopolitical and economic strategy with Indian legal and regulatory policy: examines how US semiconductor export controls, CFIUS outbound/inbound investment rules, SEBI foreign portfolio disclosure norms, and Supreme Court of India commercial arbitration rulings are reshaping multi-billion-dollar cross-border capital flows.',
+    summary:
+      'As global institutional investors and multinational corporations accelerate supply-chain diversification into India amid US–China tariff realignments, cross-border dealmakers at leading US and Indian law firms are navigating concurrent regulatory regimes: US CFIUS and export control compliance, SEBI Foreign Portfolio Investor (FPI) beneficial-ownership norms, Competition Commission of India (CCI) deal-value thresholds, and Supreme Court of India jurisprudence on cross-border arbitral enforcement.',
+    analysis: {
+      modelUsed: 'Verified Baseline Reference (Gemini Schema v2)',
+      generatedAt: '2026-11-08T12:00:00Z',
+      detailedOverview: {
+        narrative: [
+          'The global geopolitical and macroeconomic landscape is undergoing a structural realignment as sovereign wealth funds, private equity sponsors, and Fortune 500 technology manufacturers shift capital toward the US–India strategic corridor. These cross-border transactions—spanning semiconductor fabrication, clean-energy infrastructure, digital public infrastructure, and sovereign debt markets—require simultaneous navigation of Washington, Brussels, and New Delhi regulatory frameworks.',
+          'On the Indian legal and regulatory front, three pivotal developments govern inbound international capital: (1) the Supreme Court of India’s constitution-bench jurisprudence strengthening the enforcement of international commercial arbitration awards and clarifying the "group of companies" doctrine under the Arbitration and Conciliation Act; (2) the Competition Commission of India (CCI) implementing global "Deal Value Thresholds" (₹2,000 crore / ~$240M with substantial business operations in India) requiring mandatory pre-merger clearance; and (3) SEBI and RBI calibrations of Foreign Portfolio Investor (FPI) granular disclosure rules and FEMA cross-border share-swap regulations.',
+          'Concurrently, on the international geopolitical front, US counsel at Sullivan & Cromwell, Latham & Watkins, Cleary Gottlieb, Skadden, and Kirkland & Ellis are structuring joint ventures to comply with US Department of Commerce BIS export controls, CFIUS national-security covenants, and reciprocal tariff regimes.'
+        ],
+        partiesAndCounsel: [
+          'Cross-Border M&A, Sovereign Investment & Trade Counsel: Sullivan & Cromwell LLP, Latham & Watkins LLP, Cleary Gottlieb Steen & Hamilton LLP, Skadden, and Kirkland & Ellis LLP (coordinating with leading Indian counsel)',
+          'Key Regulatory & Judicial Authorities: Supreme Court of India, SEBI, Reserve Bank of India (RBI), Competition Commission of India (CCI), and US Treasury (CFIUS)'
+        ],
+        dealValueAndStatus: 'Multi-Billion Dollar Cross-Border Capital Corridor • Active Geopolitical, Trade & Indian Regulatory Regime',
+        epistemicBreakdown: {
+          verifiedFacts: [
+            'The Supreme Court of India upheld the "group of companies" doctrine in Cox and Kings Ltd. v. SAP India Pvt. Ltd., binding non-signatory corporate affiliates to arbitration agreements where mutual intention is demonstrated.',
+            'India’s Competition (Amendment) Act introduced a ₹2,000 crore (~$240 million) Deal Value Threshold (DVT) for CCI merger control when the target has substantial business operations in India.',
+            'US BIS export controls and CFIUS national-security reviews increasingly govern cross-border technology transfers and joint ventures across the Indo-Pacific.'
+          ],
+          allegationsAndDisputes: [
+            'Global asset managers and foreign portfolio funds continue to debate compliance friction around granular ultimate beneficial ownership (UBO) look-through mandates and bilateral tax treaty substance requirements.'
+          ],
+          analyticalConsensus: [
+            'Cross-border transactions involving India and the Indo-Pacific now require integrated dual-track legal structuring: pairing New York/Delaware/English governing-law financing documents with Indian FEMA, CCI, SEBI, and Singapore/London (SIAC/LCIA) arbitral enforcement architecture.'
+          ]
+        }
+      },
+      conceptExplainer: {
+        conceptTerm: 'Cross-Border Regulatory Convergence: CCI Deal-Value Thresholds, FEMA Pricing Guidelines & New York Convention Arbitral Enforcement',
+        categoryId: 'general-international',
+        shortDefinition:
+          'The legal and macroeconomic architecture governing how international capital enters India and emerging markets while managing sovereign regulatory clearance, currency controls, and dispute resolution.',
+        beginner:
+          'When a global company or US investment fund invests billions of dollars into another country—such as building a semiconductor plant or buying a tech company in India—it cannot simply wire the money and sign a standard US contract. It has to follow two sets of laws at once. First, it must satisfy geopolitical and national-security rules (like US export controls and India’s foreign investment rules under FEMA and the Reserve Bank of India). Second, it must get antitrust approval from the Competition Commission of India (CCI) if the deal is worth over ₹2,000 crore (~$240M). Finally, both sides usually agree to resolve any future business disputes in neutral international arbitration (such as in Singapore or London) that the Supreme Court of India will enforce.',
+        intermediate:
+          'Cross-border investments into India operate across four interlocking legal pillars: (1) Exchange Control (FEMA & NDI Rules), which distinguishes automatic-route Foreign Direct Investment (FDI) from government-approval sectors (including Press Note 3 restrictions on land-bordering countries) and sets valuation floors/caps for equity transfers; (2) Antitrust Merger Control, where the Competition Commission of India’s new Deal Value Threshold captures high-valuation digital and tech acquisitions that previously escaped traditional asset/turnover tests; (3) Securities Regulation (SEBI), governing open-offer triggers under the SAST Takeover Code and FPI concentration disclosures; and (4) Dispute Resolution under Part I and Part II of India’s Arbitration and Conciliation Act, 1996.',
+        advanced:
+          'At the advanced transactional level, international counsel must harmonize Delaware/New York private equity governance rights (such as put options, assured exit returns, and drag-along rights) with RBI’s prohibition on guaranteed fixed-return equity instruments under FEMA (building on the Cruz City and NTT Docomo jurisprudence). Furthermore, following the Supreme Court of India’s 5-judge Constitution Bench ruling in Cox and Kings (recognizing the Group of Companies doctrine) and its rulings on unstamped arbitration agreements (In Re: Interplay), dealmakers carefully structure multi-tiered SIAC/LCIA arbitration clauses alongside emergency-arbitrator enforcement pathways under Section 9 and Section 48 of the Indian Arbitration Act.',
+        practicalExample:
+          'Suppose a US consortium led by KKR and a semiconductor manufacturer acquires a 40% stake in an Indian listed electronics group for $1.8 billion. Counsel must simultaneously clear the CCI Deal Value Threshold, launch a mandatory SEBI SAST open offer for public shareholders, structure downside exit rights to comply with FEMA fair-market-value caps, and screen technology licenses under US BIS export regulations.'
+      },
+      commercialImplications: {
+        businessRationale:
+          'Geopolitical decoupling ("China Plus One"), sovereign industrial policy subsidies, and India’s 7%+ macroeconomic growth rate have made the US–India and Europe–India corridors among the highest-priority destinations for global M&A, private equity, and sovereign infrastructure capital.',
+        structureAndFinancing:
+          'Transactions frequently utilize Mauritius, Singapore, or GIFT City (IFSC) intermediate holding structures, combining USD syndicated debt or private credit with domestic Indian rupee (INR) non-convertible debentures (NCDs) and bilateral investment protection mechanisms.',
+        lawFirmAdvisoryRole:
+          'Elite international firms (Sullivan & Cromwell, Latham & Watkins, Cleary Gottlieb, Skadden, Kirkland & Ellis) act as global transaction and international arbitration counsel, partnering seamlessly with premier Indian law firms to align CFIUS/trade compliance, New York/English law financing, and Indian Supreme Court/SEBI/CCI execution.',
+        stakeholderImpact:
+          'Directly impacts multinational boards, global sovereign wealth funds, Indian conglomerates, and cross-border LL.M. practitioners operating at the nexus of US corporate law and Indian legal/economic policy.'
+      },
+      academicSynergies: {
+        intellectualConnection:
+          'Connects comparative corporate governance, international financial regulation, and law-and-development political economy—examining how emerging-market legal institutions (Supreme Court of India, SEBI, RBI, IBC) adapt Anglo-American corporate and insolvency doctrines to concentrated promoter-led ownership structures.',
+        hlsCourses: [
+          {
+            title: 'Comparative Corporate Governance',
+            instructors: 'Jesse M. Fried / Mark J. Roe',
+            connection: 'Contrasts dispersed US public companies with controller/promoter-dominated corporate groups in India, Europe, and Asia.'
+          },
+          {
+            title: 'International Finance',
+            instructors: 'Hal S. Scott',
+            connection: 'Examines cross-border capital flows, currency controls, sovereign risk, and international regulatory harmonization.'
+          }
+        ],
+        centersAndPeerPrograms: [
+          'Harvard Law School Program on International Financial Systems (PIFS)',
+          'Harvard Law School Center on the Legal Profession (Globalization & Emerging Markets Research)',
+          'Columbia Law School — Center for Indian Law and Policy'
+        ]
+      },
+      professorConnections: {
+        verifiedProfessor: 'Mark J. Roe & Hal S. Scott',
+        affiliationStatus: 'Verified Harvard Law School Faculty',
+        scholarshipContext:
+          'Professor Mark Roe’s scholarship on the political economy of corporate ownership explains why controller/promoter corporate structures persist in rapidly growing economies and how legal institutions police controller tunneling, while Professor Hal Scott’s work at PIFS analyzes cross-border capital market integration and financial regulation.',
+        discussionQuestions: [
+          'How should comparative corporate law balance minority investor protection (such as SEBI related-party transaction rules and Delaware MFW-style independent approvals) against the entrepreneurial speed of promoter-led conglomerates in India?',
+          'How do India’s Insolvency and Bankruptcy Code (IBC) creditor-in-control model and US Chapter 11 debtor-in-possession (DIP) restructuring differ in resolving distressed cross-border infrastructure and industrial assets?'
+        ]
+      },
+      furtherReading: {
+        primarySources: [
+          {
+            title: 'Supreme Court of India — Cox and Kings Ltd. v. SAP India Pvt. Ltd. (Constitution Bench Ruling on Group of Companies in Arbitration)',
+            type: 'Supreme Court of India Judgment',
+            url: 'https://main.sci.gov.in/'
+          },
+          {
+            title: 'SEBI & Competition Commission of India (CCI) Regulatory Notifications on FPI Disclosures and Deal Value Thresholds',
+            type: 'Indian Primary Regulatory Filings',
+            url: 'https://www.sebi.gov.in/'
+          }
+        ],
+        secondaryCommentary: [
+          {
+            title: 'Harvard Law School Program on International Financial Systems (PIFS) — Cross-Border Capital Markets Symposia',
+            type: 'Academic Research Center',
+            url: 'https://www.pifs.harvard.edu/'
+          }
+        ]
+      }
+    }
+  },
 ];

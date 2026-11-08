@@ -191,8 +191,43 @@ app.get('/api/bootstrap', (req, res) => {
       // ignore
     }
 
-    // Compute #1 Biggest Story of the Day and #1 Biggest Category of the Day by score
-    const spotlightStory = formattedArticles[0] || null;
+    // Compute #1 Biggest Story of the Day (excluding Harvard column; prioritizing International Geopolitical/Economic or Indian Law/Politics)
+    const nonHarvardArticles = formattedArticles.filter(
+      (a) => !a.isFacultyAuthored && !(a.sourceName || '').toLowerCase().includes('harvard')
+    );
+
+    const scoreSpotlightPriority = (art) => {
+      const blob = `${art.title || ''} ${art.summary || ''} ${art.whyThisMatters || ''} ${art.sourceName || ''}`;
+      let priority = art.significanceScore || 50;
+
+      const isIndianLawOrPolitics =
+        /\b(India|Indian|Supreme Court of India|SEBI|Reserve Bank of India|RBI|Competition Commission of India|CCI|IBC|NCLT|New Delhi|Mumbai|Ministry of Corporate Affairs|Lok Sabha|Rajya Sabha)\b/i.test(
+          blob
+        );
+
+      const isIntlGeopoliticalOrEcon =
+        /\b(geopolit|international|cross-border|tariff|sanction|CFIUS|European Commission|EU\b|UK\b|sovereign|treaty|bilateral|global|macroeconomic|export control|world trade|WTO|IMF|central bank|Indo-Pacific|arbitration)\b/i.test(
+          blob
+        );
+
+      if (isIndianLawOrPolitics && isIntlGeopoliticalOrEcon) {
+        priority += 45;
+      } else if (isIndianLawOrPolitics || isIntlGeopoliticalOrEcon) {
+        priority += 32;
+      }
+
+      if (art.categoryId === 'general-international') {
+        priority += 10;
+      }
+
+      return priority;
+    };
+
+    const spotlightStory =
+      [...nonHarvardArticles].sort(
+        (a, b) => scoreSpotlightPriority(b) - scoreSpotlightPriority(a)
+      )[0] || null;
+
     const biggestCategoryOfDay = [...categoriesEnriched]
       .filter((c) => c.totalCount > 0)
       .sort((a, b) => {

@@ -191,9 +191,9 @@ export function computeSignificanceScore(item, matchedFirmIds = [], authorshipIn
     score += 9;
   }
 
-  // 2. Regulatory, Judicial & Macroeconomic Gravity
-  if (/\b(Supreme Court|SCOTUS|Delaware Chancery|Delaware Supreme Court|SEC|FTC|DOJ|Federal Reserve|CFIUS|European Commission|Fifth Circuit|Second Circuit|Basel III|Loper Bright|Chapter 11)\b/i.test(blob)) {
-    score += 14;
+  // 2. Regulatory, Judicial, International Geopolitical & Indian Law Gravity
+  if (/\b(Supreme Court|SCOTUS|Supreme Court of India|SEBI|Reserve Bank of India|RBI|Competition Commission of India|CCI|NCLT|IBC|Delaware Chancery|Delaware Supreme Court|SEC|FTC|DOJ|Federal Reserve|CFIUS|European Commission|Fifth Circuit|Second Circuit|Basel III|Loper Bright|Chapter 11|tariffs|sanctions|geopolitics|cross-border|sovereign)\b/i.test(blob)) {
+    score += 16;
   }
 
   // 3. Leading US Law Firm Involvement

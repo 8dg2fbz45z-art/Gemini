@@ -89,13 +89,14 @@ export const CATEGORIES = [
     id: 'general-international',
     name: 'General Legal and International',
     shortName: 'General & International',
-    subtitle: 'US Supreme Court administrative law, cross-border arbitration, CFIUS national security, sanctions, and sovereign trade',
+    subtitle: 'International geopolitics & macroeconomics, Indian law & Supreme Court/SEBI/CCI policy, CFIUS, sanctions, and cross-border trade',
     icon: 'Globe',
     accentColor: '#374151',
     keywords: [
       'supreme court', 'scotus', 'loper bright', 'administrative law', 'cfius', 'sanctions', 'tariffs',
       'international arbitration', 'icsid', 'cross-border', 'european commission', 'wto', 'foreign direct investment',
-      'sovereign', 'treaty', 'appellate', 'constitutional', 'doj', 'ftc', 'geopolitics'
+      'sovereign', 'treaty', 'appellate', 'constitutional', 'doj', 'ftc', 'geopolitics', 'geopolitical',
+      'india', 'indian', 'supreme court of india', 'sebi', 'rbi', 'reserve bank of india', 'cci', 'ibc', 'nclt', 'new delhi'
     ],
   },
 ];
@@ -681,5 +682,21 @@ export const PUBLIC_RSS_SOURCES = [
     sourceType: 'journalism',
     defaultCategory: 'technology-ai',
     credibilityWeight: 16,
+  },
+  {
+    id: 'india-law-policy-wire',
+    name: 'Indian Law, Supreme Court of India, SEBI, RBI & Policy Wire',
+    url: 'https://news.google.com/rss/search?q=(%22Supreme+Court+of+India%22+OR+%22SEBI%22+OR+%22Reserve+Bank+of+India%22+OR+%22Competition+Commission+of+India%22+OR+%22IBC%22+OR+%22NCLT%22)+AND+(law+OR+ruling+OR+regulation+OR+policy+OR+economy)&hl=en-IN&gl=IN&ceid=IN:en',
+    sourceType: 'journalism',
+    defaultCategory: 'general-international',
+    credibilityWeight: 18,
+  },
+  {
+    id: 'global-geopolitics-econ-wire',
+    name: 'International Geopolitics, Cross-Border Trade & Sovereign Economy Wire',
+    url: 'https://news.google.com/rss/search?q=(%22geopolitics%22+OR+%22tariffs%22+OR+%22CFIUS%22+OR+%22European+Commission%22+OR+%22sovereign+wealth%22+OR+%22cross-border%22+OR+%22India-US%22)+AND+(trade+OR+economy+OR+sanctions+OR+treaty+OR+billion+OR+regulation)&hl=en-US&gl=US&ceid=US:en',
+    sourceType: 'journalism',
+    defaultCategory: 'general-international',
+    credibilityWeight: 18,
   },
 ];
