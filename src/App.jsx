@@ -9,6 +9,12 @@ import GeminiSettingsModal from './components/GeminiSettingsModal.jsx';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
+  const [uiSettings, setUiSettings] = useState({
+    fontSize: 'normal', // 'normal' | 'large' | 'xlarge'
+    fontFamily: 'editorial', // 'editorial' | 'sans'
+    accessibilityMode: false,
+    maxBriefsPerTopic: 15,
+  });
   const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' | 'feed' | 'reader'
   const [bootstrapData, setBootstrapData] = useState(null);
   const [articles, setArticles] = useState([]);
@@ -45,12 +51,23 @@ export default function App() {
   const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
 
   useEffect(() => {
+    const root = document.documentElement;
     if (darkMode) {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
-  }, [darkMode]);
+    root.classList.remove('font-size-large', 'font-size-xlarge');
+    if (uiSettings.fontSize === 'large') root.classList.add('font-size-large');
+    if (uiSettings.fontSize === 'xlarge') root.classList.add('font-size-xlarge');
+
+    root.classList.toggle('font-style-sans', uiSettings.fontFamily === 'sans');
+    root.classList.toggle('accessibility-mode', Boolean(uiSettings.accessibilityMode));
+  }, [darkMode, uiSettings]);
+
+  const handleUpdateUiSettings = (partial) => {
+    setUiSettings((prev) => ({ ...prev, ...partial }));
+  };
 
   const fetchBootstrap = useCallback(async () => {
     try {
@@ -365,6 +382,8 @@ export default function App() {
         {activeView === 'dashboard' && (
           <DashboardGrid
             categories={bootstrapData?.categories || []}
+            spotlight={bootstrapData?.spotlight}
+            maxBriefsPerTopic={uiSettings.maxBriefsPerTopic}
             lawFirms={bootstrapData?.lawFirms || []}
             verifiedFaculty={bootstrapData?.verifiedFaculty || []}
             includeSamples={includeSamples}
@@ -469,6 +488,10 @@ export default function App() {
         aiStatus={bootstrapData?.aiStatus}
         publicRssSources={bootstrapData?.publicRssSources || []}
         onSaveGeminiSettings={handleSaveGeminiSettings}
+        uiSettings={uiSettings}
+        onUpdateUiSettings={handleUpdateUiSettings}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode((d) => !d)}
       />
     </div>
   );

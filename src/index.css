@@ -53,6 +53,28 @@
     -webkit-text-fill-color: #94a3b8 !important;
     opacity: 1 !important;
   }
+
+  /* Font Size Scaling */
+  html.font-size-large {
+    font-size: 18px;
+  }
+  html.font-size-xlarge {
+    font-size: 20px;
+  }
+
+  /* Clean Sans-Serif Override */
+  html.font-style-sans h1,
+  html.font-style-sans h2,
+  html.font-style-sans h3,
+  html.font-style-sans .font-serif {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  }
+
+  /* Accessibility Mode (Relaxed line spacing & stronger borders) */
+  html.accessibility-mode p,
+  html.accessibility-mode li {
+    line-height: 1.85 !important;
+  }
 }
 
 /* Custom subtle scrollbars for editorial reading */

@@ -9,6 +9,7 @@ import {
   Globe,
   GraduationCap,
   Scale,
+  Flame,
   ChevronRight,
 } from 'lucide-react';
 
@@ -24,23 +25,64 @@ const ICON_MAP = {
 
 export default function DashboardGrid({
   categories = [],
+  spotlight,
+  maxBriefsPerTopic = 15,
   onSelectCategory,
+  onSelectArticle,
   onSelectFacultySpotlight,
   onSelectLawFirmInsight,
 }) {
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      {/* Simple Header */}
-      <div>
-        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-          Choose a Topic
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Tap any box below to open today’s curated briefs.
-        </p>
-      </div>
+  const storyOfTheDay = spotlight?.storyOfTheDay;
+  const biggestCategory = spotlight?.biggestCategory;
 
-      {/* Special Direct-Access Boxes: Harvard Insight & Law Firm Insight */}
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      {/* DAILY SPOTLIGHT BOX: #1 Biggest Story of the Day & Biggest Category by Score */}
+      {storyOfTheDay && (
+        <div className="rounded-2xl border-2 border-crimson-700 bg-white dark:bg-ink-900 p-5 sm:p-6 shadow-sm space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-crimson-700 text-white">
+              <Flame className="w-3.5 h-3.5" />
+              <span>Spotlight • #1 Story of the Day (Score {storyOfTheDay.significanceScore}/100)</span>
+            </div>
+
+            {biggestCategory && (
+              <button
+                onClick={() => onSelectCategory(biggestCategory.id)}
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-parchment-100 dark:bg-ink-800 text-crimson-800 dark:text-crimson-300 border border-stone-200 dark:border-slate-700 hover:border-crimson-700"
+              >
+                <span>Top Category Today: {biggestCategory.name}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div
+            onClick={() => onSelectArticle(storyOfTheDay.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onSelectArticle(storyOfTheDay.id);
+            }}
+            className="group cursor-pointer space-y-1.5 pt-1"
+          >
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {storyOfTheDay.sourceName}
+            </div>
+            <h2 className="font-serif text-lg sm:text-xl font-bold text-slate-900 dark:text-white group-hover:text-crimson-700 dark:group-hover:text-crimson-400 leading-snug">
+              {storyOfTheDay.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+              {storyOfTheDay.whyThisMatters || storyOfTheDay.summary}
+            </p>
+            <div className="pt-1 text-xs font-semibold text-crimson-700 dark:text-crimson-400 group-hover:underline">
+              Tap to read #1 story &rarr;
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct-Access Insight Boxes: Harvard Insight & Law Firm Insight */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <button
           onClick={onSelectFacultySpotlight}
@@ -87,7 +129,7 @@ export default function DashboardGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {categories.map((cat) => {
           const IconComponent = ICON_MAP[cat.icon] || Building2;
-          const count = Math.min(15, cat.totalCount || 0);
+          const count = Math.min(maxBriefsPerTopic, cat.totalCount || 0);
 
           return (
             <button

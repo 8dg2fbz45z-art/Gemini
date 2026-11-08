@@ -14,18 +14,22 @@ export default function ArticleReader({
   isLoading,
   onBack,
   onToggleBookmark,
+  onSaveGlossaryConcept,
 }) {
   // Strictly ONE view at a time: 'summary' | 'concept' | 'harvard' | 'firms'
   const [activeSection, setActiveSection] = useState('summary');
   const [conceptDepth, setConceptDepth] = useState('beginner');
+  const [conceptSaved, setConceptSaved] = useState(false);
 
   const article = articleData?.article;
   const analysis = articleData?.analysis;
+  const progressiveLearning = articleData?.progressiveLearning;
 
   useEffect(() => {
     setActiveSection('summary');
     setConceptDepth('beginner');
-  }, [article?.id]);
+    setConceptSaved(Boolean(progressiveLearning?.isPreviouslyStudied));
+  }, [article?.id, progressiveLearning?.isPreviouslyStudied]);
 
   if (isLoading || !article || !analysis) {
     return (
@@ -41,9 +45,24 @@ export default function ArticleReader({
   const synergies = analysis.academicSynergies || {};
   const profConn = analysis.professorConnections || {};
 
+  const handleSaveConceptClick = async () => {
+    await onSaveGlossaryConcept({
+      term: concept.conceptTerm,
+      categoryId: concept.categoryId || article.categoryId,
+      shortDefinition: concept.shortDefinition,
+      beginner: concept.beginner,
+      intermediate: concept.intermediate,
+      advanced: concept.advanced,
+      practicalExample: concept.practicalExample,
+      articleId: article.id,
+      masteryLevel: 'familiar',
+    });
+    setConceptSaved(true);
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-      {/* Top Bar: Back, Save, Source Link */}
+      {/* Top Bar: Back, Save Article, Source Link */}
       <div className="flex items-center justify-between gap-2">
         <button
           onClick={onBack}
@@ -63,7 +82,7 @@ export default function ArticleReader({
             }`}
           >
             <Bookmark className={`w-3.5 h-3.5 ${article.isBookmarked ? 'fill-current' : ''}`} />
-            <span>{article.isBookmarked ? 'Saved' : 'Save'}</span>
+            <span>{article.isBookmarked ? 'Article Saved' : 'Save Article'}</span>
           </button>
 
           <a
@@ -164,28 +183,44 @@ export default function ArticleReader({
           </div>
         )}
 
-        {/* VIEW 2: CONCEPT EXPLAINER */}
+        {/* VIEW 2: CONCEPT EXPLAINER (With Save Concept Bookmark right next to Beginner/Intermediate/Advanced) */}
         {activeSection === 'concept' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex flex-col gap-3">
               <h2 className="font-serif text-lg font-bold text-slate-900 dark:text-white">
                 {concept.conceptTerm}
               </h2>
 
-              <div className="inline-flex rounded-lg bg-parchment-100 dark:bg-ink-950 p-1 self-start">
-                {['beginner', 'intermediate', 'advanced'].map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => setConceptDepth(level)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${
-                      conceptDepth === level
-                        ? 'bg-crimson-700 text-white'
-                        : 'text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {/* Beginner / Intermediate / Advanced Pills */}
+                <div className="inline-flex rounded-lg bg-parchment-100 dark:bg-ink-950 p-1">
+                  {['beginner', 'intermediate', 'advanced'].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setConceptDepth(level)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize ${
+                        conceptDepth === level
+                          ? 'bg-crimson-700 text-white'
+                          : 'text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Bookmark Concept to Glossary Button */}
+                <button
+                  onClick={handleSaveConceptClick}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                    conceptSaved
+                      ? 'bg-crimson-700 text-white border-crimson-700'
+                      : 'bg-parchment-50 dark:bg-ink-950 text-crimson-700 dark:text-crimson-400 border-crimson-300 dark:border-crimson-800 hover:bg-crimson-50'
+                  }`}
+                >
+                  <Bookmark className={`w-3.5 h-3.5 ${conceptSaved ? 'fill-current' : ''}`} />
+                  <span>{conceptSaved ? 'Concept Saved to Glossary ✓' : 'Save Concept'}</span>
+                </button>
               </div>
             </div>
 

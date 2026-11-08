@@ -191,8 +191,30 @@ app.get('/api/bootstrap', (req, res) => {
       // ignore
     }
 
+    // Compute #1 Biggest Story of the Day and #1 Biggest Category of the Day by score
+    const spotlightStory = formattedArticles[0] || null;
+    const biggestCategoryOfDay = [...categoriesEnriched]
+      .filter((c) => c.totalCount > 0)
+      .sort((a, b) => {
+        const topA = a.topStory?.significanceScore || 0;
+        const topB = b.topStory?.significanceScore || 0;
+        if (topB !== topA) return topB - topA;
+        return b.totalCount - a.totalCount;
+      })[0] || null;
+
     res.json({
       categories: categoriesEnriched,
+      spotlight: {
+        storyOfTheDay: spotlightStory,
+        biggestCategory: biggestCategoryOfDay
+          ? {
+              id: biggestCategoryOfDay.id,
+              name: biggestCategoryOfDay.name,
+              peakScore: biggestCategoryOfDay.topStory?.significanceScore || 0,
+              totalCount: biggestCategoryOfDay.totalCount,
+            }
+          : null,
+      },
       lawFirms: firmsList,
       verifiedFaculty: VERIFIED_HLS_FACULTY,
       peerInstitutions: VERIFIED_PEER_INSTITUTIONS,
