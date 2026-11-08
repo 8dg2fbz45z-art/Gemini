@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: 'Newsreader', Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+
+  /* Guarantee high-contrast visible text and cursor in all inputs across Safari, Chrome & iOS */
+  input,
+  textarea,
+  select {
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    caret-color: #A51C30 !important;
+    background-color: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+    opacity: 1 !important;
+  }
+
+  html.dark input,
+  html.dark textarea,
+  html.dark select {
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    caret-color: #f4adb8 !important;
+    background-color: #12161B !important;
+    opacity: 1 !important;
+  }
+
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Custom subtle scrollbars for editorial reading */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(165, 28, 48, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(165, 28, 48, 0.5);
+}
