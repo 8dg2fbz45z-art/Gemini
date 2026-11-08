@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { db, initializeDatabase, getSetting, setSetting } from './db.js';
+import { db, initializeDatabase, getSetting, setSetting, isTursoConfigured } from './db.js';
 import {
   CATEGORIES,
   VERIFIED_HLS_FACULTY,
@@ -19,7 +19,7 @@ import {
   generateWeeklyDigest,
 } from './services/llmProcessor.js';
 
-initializeDatabase();
+await initializeDatabase();
 pruneExcessArticlesPerCategory(15);
 
 const app = express();
@@ -268,6 +268,7 @@ app.get('/api/bootstrap', (req, res) => {
         provider: 'Google Gemini',
         model: geminiConfig.model,
         hasApiKey: geminiConfig.hasApiKey,
+        tursoConnected: isTursoConfigured,
         lastRssRefresh,
         lastRssStats,
       },

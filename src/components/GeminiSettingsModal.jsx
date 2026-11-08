@@ -267,6 +267,11 @@ export default function GeminiSettingsModal({
               {aiStatus?.lastRssRefresh
                 ? new Date(aiStatus.lastRssRefresh).toLocaleString()
                 : 'Ready'}
+              {' • '}
+              Database:{' '}
+              {aiStatus?.tursoConnected
+                ? 'Turso Cloud SQLite (Permanent Cloud Storage)'
+                : 'Local SQLite (Ready for Turso Env Vars)'}
             </p>
           </div>
         </div>
