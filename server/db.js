@@ -13,6 +13,22 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// Automatically load .env from project root if present
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx > 0) {
+      const k = trimmed.slice(0, eqIdx).trim();
+      const v = trimmed.slice(eqIdx + 1).trim();
+      if (!process.env[k]) process.env[k] = v;
+    }
+  }
+}
+
 // ============================================================================
 // TURSO CLOUD SQLITE CONFIGURATION (via Environment Variables)
 // ============================================================================
@@ -425,9 +441,57 @@ async function syncFromTursoCloudOnBoot() {
     }
   }
 
-  console.log(
-    `[Turso Cloud] Synced ${remoteArticles.length} articles, ${remoteGlossary.length} saved concepts, and ${remoteNotes.length} notes from Turso.`
-  );
+  // 8. If Turso Cloud is newly created (0 articles in Turso, but local DB has data), push local data up to Turso
+  if (remoteArticles.length === 0) {
+    const localFirms = rawDb.prepare('SELECT * FROM law_firms').all();
+    const localArticles = rawDb.prepare('SELECT * FROM articles WHERE is_sample = 0').all();
+    const localGlossary = rawDb.prepare('SELECT * FROM glossary_concepts').all();
+    const localNotes = rawDb.prepare('SELECT * FROM research_notes').all();
+    const localSettings = rawDb.prepare('SELECT * FROM app_settings').all();
+
+    const uploadBatch = [];
+    for (const f of localFirms) {
+      uploadBatch.push({
+        sql: `INSERT OR IGNORE INTO law_firms (id, name, short_name, vault_rank, amlaw_revenue_rank, deal_volume_tier, headquarters, core_strengths_json, aliases_json, is_watched) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [f.id, f.name, f.short_name, f.vault_rank, f.amlaw_revenue_rank, f.deal_volume_tier, f.headquarters, f.core_strengths_json, f.aliases_json, f.is_watched],
+      });
+    }
+    for (const g of localGlossary) {
+      uploadBatch.push({
+        sql: `INSERT OR IGNORE INTO glossary_concepts (id, term, category_id, short_definition, beginner_text, intermediate_text, advanced_text, practical_example, encounter_count, mastery_level, source_article_ids_json, saved_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [g.id, g.term, g.category_id, g.short_definition, g.beginner_text, g.intermediate_text, g.advanced_text, g.practical_example, g.encounter_count, g.mastery_level, g.source_article_ids_json, g.saved_at, g.updated_at],
+      });
+    }
+    for (const n of localNotes) {
+      uploadBatch.push({
+        sql: `INSERT OR IGNORE INTO research_notes (id, article_id, title, note_type, content, tags_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [n.id, n.article_id, n.title, n.note_type, n.content, n.tags_json, n.created_at, n.updated_at],
+      });
+    }
+    for (const s of localSettings) {
+      uploadBatch.push({
+        sql: `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
+        args: [s.key, s.value],
+      });
+    }
+    for (const a of localArticles) {
+      uploadBatch.push({
+        sql: `INSERT OR IGNORE INTO articles (id, title, url, source_name, source_type, author, published_at, fetched_at, category_id, significance_score, why_this_matters, summary, content_raw, is_sample, is_faculty_authored, contributor_type, verified_professor_id, story_cluster_id, matched_firms_json, read_status, last_read_at, is_bookmarked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [a.id, a.title, a.url, a.source_name, a.source_type, a.author, a.published_at, a.fetched_at, a.category_id, a.significance_score, a.why_this_matters, a.summary, a.content_raw, a.is_faculty_authored, a.contributor_type, a.verified_professor_id, a.story_cluster_id, a.matched_firms_json, a.read_status, a.last_read_at, a.is_bookmarked],
+      });
+    }
+
+    for (let i = 0; i < uploadBatch.length; i += 25) {
+      await executeTursoBatch(uploadBatch.slice(i, i + 25));
+    }
+    console.log(
+      `[Turso Cloud] Initialized new Turso database with ${localArticles.length} live articles, ${localFirms.length} firms, and ${localGlossary.length} glossary concepts.`
+    );
+  } else {
+    console.log(
+      `[Turso Cloud] Synced ${remoteArticles.length} articles, ${remoteGlossary.length} saved concepts, and ${remoteNotes.length} notes from Turso.`
+    );
+  }
 }
 
 export async function initializeDatabase() {
