@@ -6,7 +6,7 @@ Whenever starting a new chat in `/Users/vir/Desktop/Antigravity`, read this file
 - **Application**: **CrimsonBrief** — a private, single-user legal, geopolitical/macroeconomic, Indian law, and business intelligence platform tailored for a prospective Harvard Law School (HLS) LL.M. candidate.
 - **Design Philosophy**:
   - **Calm, uncluttered, mobile-first reading experience** ("one thing at a time").
-  - **No information overload**: Keep each category capped at **15 briefs** (`pruneExcessArticlesPerCategory(15)`).
+  - **No information overload & Unread Protection**: Keep each category capped around **15 briefs** (`pruneExcessArticlesPerCategory(15)`), while **protecting unread high-importance articles (`read_status = 'unread'`) across 6-hour refreshes until the user opens/reads them**, and sorting every category/insight feed strictly by **Importance Score (`significance_score DESC`, #1 Highest on top)**.
   - **100% Real Live Articles Only**: Never seed or display synthetic/sample articles (`is_sample = 1` rows are purged). All articles must come from real, live public RSS feeds with working original URLs.
   - **Spotlight Box Rule**: The `#1 Story of the Day` Spotlight Box at the top of the Home Screen must **never** pull from the Harvard column (`!isFacultyAuthored` and source not Harvard Forum). It must prioritize stories with **International Geopolitical / Economic value** or **Indian Law / Supreme Court of India / SEBI / RBI / CCI / Indian Politics value**.
   - **AI Model Preference**: Default to **Google Gemini 2.5 Pro** (`gemini-2.5-pro`) with automatic free-tier cascade (`gemini-2.5-pro` -> `gemini-2.5-flash` -> `gemini-2.0-flash`) and deterministic local registry fallback so the user never hits a billing error.

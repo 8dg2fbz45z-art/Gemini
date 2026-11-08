@@ -126,7 +126,13 @@ app.get('/api/bootstrap', (req, res) => {
     const { allFirmsMap, analysisMap, clusterCountsMap } = getLookupMaps();
 
     const allArticlesRaw = db
-      .prepare('SELECT * FROM articles ORDER BY significance_score DESC, published_at DESC')
+      .prepare(
+        `SELECT * FROM articles
+         ORDER BY
+           significance_score DESC,
+           CASE WHEN read_status = 'unread' THEN 1 ELSE 0 END DESC,
+           published_at DESC`
+      )
       .all();
 
     const filteredArticles = includeSamples
@@ -296,7 +302,13 @@ app.get('/api/articles', (req, res) => {
 
     const { allFirmsMap, analysisMap, clusterCountsMap } = getLookupMaps();
     const rows = db
-      .prepare('SELECT * FROM articles ORDER BY significance_score DESC, published_at DESC')
+      .prepare(
+        `SELECT * FROM articles
+         ORDER BY
+           significance_score DESC,
+           CASE WHEN read_status = 'unread' THEN 1 ELSE 0 END DESC,
+           published_at DESC`
+      )
       .all();
 
     let articles = rows.map((r) =>
@@ -325,10 +337,13 @@ app.get('/api/articles', (req, res) => {
               (a.sourceName || '').toLowerCase().includes('harvard law'))
         )
         .sort((a, b) => {
-          if (a.isFacultyAuthored !== b.isFacultyAuthored) {
-            return a.isFacultyAuthored ? -1 : 1;
+          if (b.significanceScore !== a.significanceScore) {
+            return b.significanceScore - a.significanceScore;
           }
-          return b.significanceScore - a.significanceScore;
+          if ((a.readStatus === 'unread') !== (b.readStatus === 'unread')) {
+            return a.readStatus === 'unread' ? -1 : 1;
+          }
+          return new Date(b.publishedAt) - new Date(a.publishedAt);
         });
     }
     if (bookmarkedOnly === 'true') {

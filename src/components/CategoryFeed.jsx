@@ -59,7 +59,7 @@ export default function CategoryFeed({
           {getFeedTitle()}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          {visibleArticles.length} briefs • Tap any brief to open it
+          {visibleArticles.length} briefs • Ranked by Importance Score (#1 Highest on top) • Unread stories stay until read
         </p>
       </div>
 
@@ -101,57 +101,76 @@ export default function CategoryFeed({
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleArticles.map((article) => (
-            <div
-              key={article.id}
-              onClick={() => onSelectArticle(article.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onSelectArticle(article.id);
-              }}
-              className="group rounded-2xl border border-stone-200 dark:border-slate-800 bg-white dark:bg-ink-900 p-4 sm:p-5 shadow-xs hover:border-crimson-700 transition-all cursor-pointer"
-            >
-              {/* Source + Date + Bookmark */}
-              <div className="flex items-center justify-between gap-2 text-xs text-slate-400 mb-1.5">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span>
-                    {article.sourceName} • {formatDate(article.publishedAt)}
-                  </span>
-                  {article.matchedFirms?.length > 0 && (
-                    <span className="text-crimson-700 dark:text-crimson-400 font-medium">
-                      • {article.matchedFirms.map((f) => f.shortName).join(', ')}
+          {visibleArticles.map((article, idx) => {
+            const isRead = article.readStatus === 'read';
+            return (
+              <div
+                key={article.id}
+                onClick={() => onSelectArticle(article.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') onSelectArticle(article.id);
+                }}
+                className={`group rounded-2xl border bg-white dark:bg-ink-900 p-4 sm:p-5 shadow-xs hover:border-crimson-700 transition-all cursor-pointer ${
+                  isRead
+                    ? 'border-stone-200/80 dark:border-slate-800/80 opacity-85'
+                    : 'border-stone-200 dark:border-slate-800'
+                }`}
+              >
+                {/* Rank + Score + Unread/Read Status + Source + Date + Bookmark */}
+                <div className="flex items-center justify-between gap-2 text-xs text-slate-400 mb-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-parchment-100 dark:bg-ink-800 text-crimson-800 dark:text-crimson-300">
+                      #{idx + 1} • Score {article.significanceScore}
                     </span>
-                  )}
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                        isRead
+                          ? 'bg-stone-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                          : 'bg-crimson-50 dark:bg-crimson-950/60 text-crimson-700 dark:text-crimson-300'
+                      }`}
+                    >
+                      {isRead ? 'Read ✓' : 'Unread'}
+                    </span>
+                    <span>
+                      {article.sourceName} • {formatDate(article.publishedAt)}
+                    </span>
+                    {article.matchedFirms?.length > 0 && (
+                      <span className="text-crimson-700 dark:text-crimson-400 font-medium">
+                        • {article.matchedFirms.map((f) => f.shortName).join(', ')}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleBookmark(article.id);
+                    }}
+                    className={`p-1 rounded ${
+                      article.isBookmarked
+                        ? 'text-crimson-700 dark:text-crimson-400'
+                        : 'text-slate-300 hover:text-slate-600'
+                    }`}
+                    aria-label="Save brief"
+                  >
+                    <Bookmark className={`w-4 h-4 ${article.isBookmarked ? 'fill-current' : ''}`} />
+                  </button>
                 </div>
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleBookmark(article.id);
-                  }}
-                  className={`p-1 rounded ${
-                    article.isBookmarked
-                      ? 'text-crimson-700 dark:text-crimson-400'
-                      : 'text-slate-300 hover:text-slate-600'
-                  }`}
-                  aria-label="Save brief"
-                >
-                  <Bookmark className={`w-4 h-4 ${article.isBookmarked ? 'fill-current' : ''}`} />
-                </button>
+                {/* Headline */}
+                <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-crimson-700 dark:group-hover:text-crimson-400 leading-snug">
+                  {article.title}
+                </h2>
+
+                {/* Short 2-line preview only */}
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
+                  {article.summary}
+                </p>
               </div>
-
-              {/* Headline */}
-              <h2 className="font-serif text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-crimson-700 dark:group-hover:text-crimson-400 leading-snug">
-                {article.title}
-              </h2>
-
-              {/* Short 2-line preview only */}
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
-                {article.summary}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

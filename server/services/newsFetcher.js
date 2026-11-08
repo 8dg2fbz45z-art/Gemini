@@ -191,24 +191,37 @@ export async function ingestLivePublicFeeds() {
 }
 
 /**
- * Keeps at most `maxPerCategory` (default 15) unbookmarked articles per category
- * ordered by significance_score DESC and published_at DESC so feeds never become overwhelming.
+ * Keeps at most `maxPerCategory` (default 15) articles per category while:
+ * 1. Never deleting bookmarked articles (`is_bookmarked = 1`).
+ * 2. Protecting unread high-importance articles (`read_status = 'unread'`) from the past 7 days
+ *    so the user never misses a major story across 6-hour refreshes until they have opened/read it.
+ * 3. Ordering retained briefs by Unread status first and `significance_score DESC` (highest importance first).
  */
 export function pruneExcessArticlesPerCategory(maxPerCategory = 15) {
+  const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const categoryRows = db.prepare('SELECT DISTINCT category_id FROM articles').all();
+
   for (const { category_id } of categoryRows) {
     const excessRows = db
       .prepare(
-        `SELECT id FROM articles
+        `SELECT id, read_status, significance_score, published_at FROM articles
          WHERE category_id = ? AND is_bookmarked = 0
-         ORDER BY significance_score DESC, published_at DESC
+         ORDER BY
+           CASE WHEN read_status = 'unread' AND significance_score >= 65 AND published_at >= ? THEN 1 ELSE 0 END DESC,
+           significance_score DESC,
+           CASE WHEN read_status = 'unread' THEN 1 ELSE 0 END DESC,
+           published_at DESC
          LIMIT -1 OFFSET ?`
       )
-      .all(category_id, maxPerCategory);
+      .all(category_id, sevenDaysAgoIso, maxPerCategory);
 
     if (excessRows.length > 0) {
       const delStmt = db.prepare('DELETE FROM articles WHERE id = ?');
       for (const r of excessRows) {
+        // Never delete an unread high-significance story (score >= 72) from the last 7 days even if category is full
+        if (r.read_status === 'unread' && r.significance_score >= 72 && r.published_at >= sevenDaysAgoIso) {
+          continue;
+        }
         delStmt.run(r.id);
       }
     }
