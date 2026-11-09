@@ -10,11 +10,14 @@ import {
   generateBaselineWhyThisMatters,
   deduplicateAndAssignCluster,
   normalizeUrl,
+  isRoundupOrDirectoryPage,
+  extractTokens,
 } from './curationFilter.js';
 import {
   cleanHtmlPreserveParagraphs,
   extractPublisherFromHeadline,
   enrichArticleContentIfNeeded,
+  isPaywalledSource,
 } from './articleExtractor.js';
 
 const parser = new Parser({
@@ -52,8 +55,8 @@ export async function ingestLivePublicFeeds() {
       published_at, fetched_at, category_id, significance_score,
       why_this_matters, summary, content_raw, is_sample,
       is_faculty_authored, contributor_type, verified_professor_id,
-      story_cluster_id, matched_firms_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+      story_cluster_id, matched_firms_json, score_breakdown_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO NOTHING
   `);
 
@@ -135,15 +138,21 @@ export async function ingestLivePublicFeeds() {
       // 3. Verify Academic / HLS Faculty Authorship
       const authorshipInfo = classifyAcademicAuthorship(candidate, matchedFirmIds);
 
-      // 4. Multi-factor Curation Score
-      const significance = computeSignificanceScore(candidate, matchedFirmIds, authorshipInfo, source.credibilityWeight);
+      // 4. Classify into one of the 7 Categories (category-sensitive)
+      const categoryId = classifyCategory(candidate, source.defaultCategory);
+
+      // 5. 7-Criterion Substance Score (0–100)
+      const significance = computeSignificanceScore(
+        candidate,
+        matchedFirmIds,
+        authorshipInfo,
+        source.credibilityWeight,
+        categoryId
+      );
       if (!significance.eligible) {
         stats.lowImpactFiltered++;
         continue;
       }
-
-      // 5. Classify into one of the 7 Categories
-      const categoryId = classifyCategory(candidate, source.defaultCategory);
 
       // 6. Generate Baseline "Why This Matters"
       const whyThisMatters = generateBaselineWhyThisMatters(
@@ -178,7 +187,8 @@ export async function ingestLivePublicFeeds() {
         authorshipInfo.contributorType,
         authorshipInfo.verifiedProfessorId,
         dedup.storyClusterId,
-        JSON.stringify(matchedFirmIds)
+        JSON.stringify(matchedFirmIds),
+        JSON.stringify(significance.breakdown || {})
       );
 
       if (info.changes > 0) {
@@ -212,43 +222,125 @@ export async function ingestLivePublicFeeds() {
 
   setSetting('last_rss_refresh', nowIso);
   setSetting('last_rss_stats', JSON.stringify(stats));
-  pruneExcessArticlesPerCategory(15);
+  pruneExcessArticlesPerCategory(8);
   return stats;
 }
 
 /**
- * Keeps at most `maxPerCategory` (default 15) articles per category while:
- * 1. Never deleting bookmarked articles (`is_bookmarked = 1`).
- * 2. Protecting unread high-importance articles (`read_status = 'unread'`) from the past 7 days
- *    so the user never misses a major story across 6-hour refreshes until they have opened/read it.
- * 3. Ordering retained briefs by Unread status first and `significance_score DESC` (highest importance first).
+ * Enforces a hard limit of 6–8 articles per category (maxPerCategory = 8):
+ * 1. Purges any roundup/directory index pages, paywalled articles (NYT/WSJ/FT/Bloomberg),
+ *    and removed primary Harvard blog items.
+ * 2. Recomputes the 7-criterion (0–100) importance score and breakdown for all existing articles.
+ * 3. Rejects weak articles (< 70) — never filling slots with weak articles merely to meet the target.
+ * 4. Deduplicates underlying events and enforces diversity of companies/subtopics within each category.
+ * 5. Prioritizes substantive developments from the preceding 24 hours without artificially inflating scores,
+ *    and caps each category strictly at `maxPerCategory` (8) sorted by `significance_score DESC`.
  */
-export function pruneExcessArticlesPerCategory(maxPerCategory = 15) {
-  const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+export function pruneExcessArticlesPerCategory(maxPerCategory = 8) {
+  const hardLimit = Math.min(8, Math.max(6, Number(maxPerCategory) || 8));
+  const allFirms = db.prepare('SELECT * FROM law_firms').all();
+  const allRows = db.prepare('SELECT * FROM articles').all();
+  const delStmt = db.prepare('DELETE FROM articles WHERE id = ?');
+  const updateScoreStmt = db.prepare(
+    'UPDATE articles SET category_id = ?, significance_score = ?, score_breakdown_json = ? WHERE id = ?'
+  );
+
+  for (const row of allRows) {
+    const candidate = {
+      title: row.title,
+      url: row.url,
+      sourceName: row.source_name,
+      sourceType: row.source_type,
+      author: row.author,
+      publishedAt: row.published_at,
+      summary: row.summary,
+      contentRaw: row.content_raw,
+    };
+
+    const isHarvardBlog =
+      (row.source_name || '').toLowerCase().includes('harvard law school forum') ||
+      (row.url || '').toLowerCase().includes('corpgov.law.harvard.edu');
+
+    if (
+      isRoundupOrDirectoryPage(candidate) ||
+      isPaywalledSource(row.url, row.source_name, row.title) ||
+      (isHarvardBlog && !row.is_bookmarked)
+    ) {
+      delStmt.run(row.id);
+      continue;
+    }
+
+    const matchedFirmIds = JSON.parse(row.matched_firms_json || '[]');
+    const authorshipInfo = classifyAcademicAuthorship(candidate, matchedFirmIds);
+    const newCategoryId = classifyCategory(candidate, row.category_id);
+    const sig = computeSignificanceScore(candidate, matchedFirmIds, authorshipInfo, 9, newCategoryId);
+
+    if (!sig.eligible && !row.is_bookmarked) {
+      delStmt.run(row.id);
+      continue;
+    }
+
+    const breakdownStr = JSON.stringify(sig.breakdown || {});
+    if (
+      newCategoryId !== row.category_id ||
+      sig.score !== row.significance_score ||
+      breakdownStr !== (row.score_breakdown_json || '{}')
+    ) {
+      updateScoreStmt.run(newCategoryId, sig.score, breakdownStr, row.id);
+    }
+  }
+
+  const twentyFourHoursAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const categoryRows = db.prepare('SELECT DISTINCT category_id FROM articles').all();
 
   for (const { category_id } of categoryRows) {
-    const excessRows = db
+    const catArticles = db
       .prepare(
-        `SELECT id, read_status, significance_score, published_at FROM articles
-         WHERE category_id = ? AND is_bookmarked = 0
+        `SELECT * FROM articles
+         WHERE category_id = ?
          ORDER BY
-           CASE WHEN read_status = 'unread' AND significance_score >= 65 AND published_at >= ? THEN 1 ELSE 0 END DESC,
+           CASE WHEN significance_score >= 80 AND published_at >= ? THEN 2
+                WHEN significance_score >= 80 THEN 1
+                ELSE 0 END DESC,
            significance_score DESC,
-           CASE WHEN read_status = 'unread' THEN 1 ELSE 0 END DESC,
-           published_at DESC
-         LIMIT -1 OFFSET ?`
+           CASE WHEN published_at >= ? THEN 1 ELSE 0 END DESC,
+           published_at DESC`
       )
-      .all(category_id, sevenDaysAgoIso, maxPerCategory);
+      .all(category_id, twentyFourHoursAgoIso, twentyFourHoursAgoIso);
 
-    if (excessRows.length > 0) {
-      const delStmt = db.prepare('DELETE FROM articles WHERE id = ?');
-      for (const r of excessRows) {
-        // Never delete an unread high-significance story (score >= 72) from the last 7 days even if category is full
-        if (r.read_status === 'unread' && r.significance_score >= 72 && r.published_at >= sevenDaysAgoIso) {
-          continue;
-        }
-        delStmt.run(r.id);
+    const keptIds = new Set();
+    const seenClusters = new Set();
+    const entityCounts = new Map();
+
+    for (const art of catArticles) {
+      if (art.is_bookmarked) {
+        keptIds.add(art.id);
+        continue;
+      }
+      if (keptIds.size >= hardLimit) {
+        continue;
+      }
+
+      // Deduplicate articles covering the same story cluster
+      if (art.story_cluster_id && seenClusters.has(art.story_cluster_id)) {
+        continue;
+      }
+
+      // Ensure diversity of companies/entities within the category (at most 2 articles led by the same primary token)
+      const tokens = extractTokens(art.title || '').filter((t) => t.length >= 4);
+      const leadEntity = tokens[0] || '';
+      if (leadEntity && (entityCounts.get(leadEntity) || 0) >= 2) {
+        continue;
+      }
+
+      keptIds.add(art.id);
+      if (art.story_cluster_id) seenClusters.add(art.story_cluster_id);
+      if (leadEntity) entityCounts.set(leadEntity, (entityCounts.get(leadEntity) || 0) + 1);
+    }
+
+    for (const art of catArticles) {
+      if (!keptIds.has(art.id) && !art.is_bookmarked) {
+        delStmt.run(art.id);
       }
     }
   }

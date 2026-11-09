@@ -166,10 +166,10 @@ export default function GeminiSettingsModal({
 
               <div className="pt-2 border-t border-stone-100 dark:border-slate-800">
                 <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-2">
-                  Daily Briefs per Topic Cap
+                  Daily Briefs per Topic Cap (6–8 Hard Limit)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {[10, 15, 20].map((num) => (
+                  {[6, 7, 8].map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -260,7 +260,7 @@ export default function GeminiSettingsModal({
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Sources: SEC.gov, FederalReserve.gov, NYTimes DealBook, CNBC, SCOTUSblog, HLS Corporate Governance Forum &amp; Google News Legal/India Wires.
+              Open Sources: US SEC, Federal Reserve, SEBI, EC Competition, CNBC, Associated Press, Reuters, The Guardian, TechCrunch, Finshots, MediaNama, Rest of World, Lawfare, Tech Policy Press, Tax Foundation, JURIST, Mondaq, The Hindu, The Indian Express &amp; Yahoo News (Paywalled sources excluded; Harvard blog kept tertiary).
             </p>
             <p className="text-[11px] text-slate-500">
               Last Synced:{' '}

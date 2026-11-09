@@ -1,4 +1,5 @@
 import { CATEGORIES, VERIFIED_HLS_FACULTY } from '../data/verifiedRegistries.js';
+import { isPaywalledSource, scoreSourceReputation } from './articleExtractor.js';
 
 const ROUTINE_OR_PROMOTIONAL_PATTERNS = [
   /\bnamed\s+to\s+.*\blist\b/i,
@@ -10,6 +11,29 @@ const ROUTINE_OR_PROMOTIONAL_PATTERNS = [
   /\bopens\s+new\s+office\s+in\b/i,
   /\bannounces\s+new\s+partner\s+class\b/i,
 ];
+
+/**
+ * Roundup, Directory, Digest & Table-of-Contents Blacklist
+ * Prevents index/directory pages (e.g., "Weekly Roundup", "Supreme Court Round-Up") from appearing as articles.
+ */
+const ROUNDUP_OR_DIRECTORY_PATTERNS = [
+  /\bweekly\s+round[\s-]?up\b/i,
+  /\bmonthly\s+round[\s-]?up\b/i,
+  /\bdaily\s+round[\s-]?up\b/i,
+  /\bround[\s-]?up\s*[:(\-–—]/i,
+  /\bround[\s-]?up\s+for\b/i,
+  /\bdaily\s+(digest|briefing|wrap)\b/i,
+  /\bnews\s+round[\s-]?up\b/i,
+  /\bweek\s+in\s+review\b/i,
+  /\btable\s+of\s+contents\b/i,
+  /\/weekly-roundup-/i,
+  /\bcontains\s+a\s+collection\s+of\s+the\s+posts\s+published\b/i,
+];
+
+export function isRoundupOrDirectoryPage(item = {}) {
+  const blob = `${item.title || ''} ${item.url || ''} ${(item.summary || '').slice(0, 300)} ${(item.contentRaw || item.content_raw || '').slice(0, 400)}`;
+  return ROUNDUP_OR_DIRECTORY_PATTERNS.some((rx) => rx.test(blob));
+}
 
 const STUDENT_INDICATORS = [
   /\bJ\.?D\.?\s*Candidate\b/i,
@@ -148,10 +172,20 @@ export function classifyAcademicAuthorship(item, matchedFirmIds = []) {
 }
 
 /**
- * Classifies an article into one of the 7 core categories based on weighted keyword matching.
+ * Classifies an article into one of the 7 core categories based on weighted keyword matching
+ * and category-sensitive context rules.
  */
 export function classifyCategory(item, defaultCategoryId = 'general-international') {
   const blob = `${item.title || ''} ${item.summary || ''} ${item.contentRaw || ''}`.toLowerCase();
+
+  // Prevent non-transactional lawsuits (defamation, libel, criminal, election/political suits) from landing in Corporate & M&A
+  if (
+    /\b(libel|defamation|slander|first amendment|criminal|murder|assault|immigration|asylum)\b/i.test(blob) &&
+    !/\b(merger|acquisition|buyout|takeover|tender offer|delaware chancery)\b/i.test(blob)
+  ) {
+    return 'general-international';
+  }
+
   let bestCategory = defaultCategoryId;
   let maxScore = 0;
 
@@ -172,56 +206,194 @@ export function classifyCategory(item, defaultCategoryId = 'general-internationa
 }
 
 /**
- * Multi-factor curation scoring engine (0–100)
+ * 7-Criterion Substance-Based Importance Scoring Engine (0–100)
+ *
+ * Weighted Rubric:
+ * 1. Significance and real-world impact: 25 points (0–25)
+ * 2. Legal and regulatory importance: 20 points (0–20)
+ * 3. Financial and economic materiality: 15 points (0–15)
+ * 4. Relevance to the assigned category: 15 points (0–15)
+ * 5. Novelty and substantive new developments: 10 points (0–10)
+ * 6. Source credibility and factual evidence: 10 points (0–10)
+ * 7. Long-term significance: 5 points (0–5)
+ *
+ * Total: 0–100 points.
+ * - Prefer articles scoring >= 80, allow 70–79 when necessary to maintain useful coverage.
+ * - Do NOT award points for sensational headlines, non-transactional damages claims, or merely being newer.
  */
-export function computeSignificanceScore(item, matchedFirmIds = [], authorshipInfo = {}, sourceCredibility = 15) {
-  const blob = `${item.title || ''} ${item.summary || ''} ${item.contentRaw || ''}`;
+export function computeSignificanceScore(
+  item,
+  matchedFirmIds = [],
+  authorshipInfo = {},
+  sourceCredibility = 9,
+  assignedCategoryId = null
+) {
+  const title = item.title || '';
+  const summary = item.summary || '';
+  const contentRaw = item.contentRaw || item.content_raw || '';
+  const blob = `${title} ${summary} ${contentRaw}`;
 
-  // Reject routine firm announcements or promotional fluff
+  // 1. Reject routine firm announcements, promotional fluff, roundup/directory pages, and paywalled sources
   if (ROUTINE_OR_PROMOTIONAL_PATTERNS.some((rx) => rx.test(blob))) {
-    return { score: 15, eligible: false, rejectionReason: 'Routine announcement or promotional content' };
+    return {
+      score: 15,
+      eligible: false,
+      rejectionReason: 'Routine announcement or promotional content',
+      breakdown: null,
+    };
   }
 
-  let score = 38 + Math.min(20, sourceCredibility);
-
-  // 1. Transaction Size & Economic Impact
-  if (/\$[0-9.]+\s*billion|\$[0-9]+B\b|\bbillion-dollar\b/i.test(blob)) {
-    score += 20;
-  } else if (/\$[0-9.]+\s*million|\$[0-9]+M\b/i.test(blob)) {
-    score += 9;
+  if (isRoundupOrDirectoryPage(item)) {
+    return {
+      score: 10,
+      eligible: false,
+      rejectionReason: 'Roundup, digest, or directory index page (blacklisted)',
+      breakdown: null,
+    };
   }
 
-  // 2. Regulatory, Judicial, International Geopolitical & Indian Law Gravity
-  if (/\b(Supreme Court|SCOTUS|Supreme Court of India|SEBI|Reserve Bank of India|RBI|Competition Commission of India|CCI|NCLT|IBC|Delaware Chancery|Delaware Supreme Court|SEC|FTC|DOJ|Federal Reserve|CFIUS|European Commission|Fifth Circuit|Second Circuit|Basel III|Loper Bright|Chapter 11|tariffs|sanctions|geopolitics|cross-border|sovereign)\b/i.test(blob)) {
-    score += 16;
+  if (isPaywalledSource(item.url || '', item.sourceName || '', title)) {
+    return {
+      score: 0,
+      eligible: false,
+      rejectionReason: 'Paywalled source excluded',
+      breakdown: null,
+    };
   }
 
-  // 3. Leading US Law Firm Involvement
-  if (matchedFirmIds.length > 0) {
-    score += 16 + Math.min(8, (matchedFirmIds.length - 1) * 4);
+  const categoryId = assignedCategoryId || classifyCategory(item);
+  const categoryObj = CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
+
+  const isNonTransactionalSuit = /\b(libel|defamation|slander|personal injury)\b/i.test(blob);
+
+  // Criterion 1: Significance and real-world impact (0–25 pts)
+  let realWorldImpact = 15;
+  if (
+    /\b(acquires|acquisition|merger|buyout|take-private|approves|adopts|enacts|blocks|strikes down|invalidates|charges|settles|enforcement|sanctions|tariffs|ruling|judgment|final rule|amendments|central bank|interest rate|sovereign|cross-border)\b/i.test(
+      blob
+    )
+  ) {
+    realWorldImpact += 6;
+  }
+  if (
+    /\b(global|industry-wide|market-wide|nationwide|systemic|institutional|multinational|landmark|major)\b/i.test(blob) ||
+    matchedFirmIds.length > 0 ||
+    (!isNonTransactionalSuit && /\$[0-9.]+\s*billion|\$[0-9]+B\b/i.test(blob))
+  ) {
+    realWorldImpact += 4;
+  }
+  if (isNonTransactionalSuit) {
+    realWorldImpact = Math.min(12, realWorldImpact);
+  }
+  realWorldImpact = Math.min(25, realWorldImpact);
+
+  // Criterion 2: Legal and regulatory importance (0–20 pts)
+  let legalRegulatory = 11;
+  if (
+    /\b(Supreme Court|SCOTUS|Supreme Court of India|SEBI|Reserve Bank of India|RBI|Competition Commission of India|CCI|NCLT|IBC|Delaware Chancery|Delaware Supreme Court|SEC|CFTC|FTC|DOJ|Federal Reserve|CFIUS|European Commission|Fifth Circuit|Second Circuit|Basel III|Loper Bright|Chapter 11|Rule 14a-8|Rule 144A|DMA|DSA|EU AI Act|antitrust|fiduciary)\b/i.test(
+      blob
+    )
+  ) {
+    legalRegulatory += 7;
+  }
+  if (matchedFirmIds.length > 0 || item.sourceType === 'primary_regulatory' || authorshipInfo.isFacultyAuthored) {
+    legalRegulatory += 2;
+  }
+  legalRegulatory = Math.min(20, legalRegulatory);
+
+  // Criterion 3: Financial and economic materiality (0–15 pts)
+  // Category-sensitive: Do not award financial materiality points to sensational libel/tort damages claims
+  let financialMateriality = 8;
+  if (!isNonTransactionalSuit) {
+    if (/\$[0-9.]+\s*billion|\$[0-9]+B\b|\btrillion\b|\b₹[0-9,]+\s*crore\b/i.test(blob)) {
+      financialMateriality = 15;
+    } else if (/\$[0-9.]+\s*million|\$[0-9]+M\b|\bbasis points\b|\bcapital requirements\b|\bliquidity\b|\bfundraising\b/i.test(blob)) {
+      financialMateriality = 13;
+    } else if (
+      /\b(capital|credit|debt|equity|valuation|fund|portfolio|tariff|trade|market|treasury|clearing|custody|tax)\b/i.test(
+        blob
+      )
+    ) {
+      financialMateriality = 11;
+    }
+  } else {
+    financialMateriality = 3;
+  }
+  financialMateriality = Math.min(15, financialMateriality);
+
+  // Criterion 4: Relevance to the assigned category (0–15 pts)
+  let categoryMatches = 0;
+  for (const kw of categoryObj.keywords) {
+    if (blob.toLowerCase().includes(kw.toLowerCase())) {
+      categoryMatches += title.toLowerCase().includes(kw.toLowerCase()) ? 2 : 1;
+    }
+  }
+  let categoryRelevance = Math.min(15, 9 + Math.min(6, categoryMatches * 2));
+  if (categoryMatches === 0) {
+    categoryRelevance = 7;
   }
 
-  // 4. Verified HLS Faculty Authorship or Academic Research Value
-  if (authorshipInfo.isFacultyAuthored) {
-    score += 22;
-  } else if (authorshipInfo.verifiedProfessorId) {
-    score += 12;
-  } else if (authorshipInfo.contributorType === 'law_firm_guest') {
-    score += 10;
+  // Criterion 5: Novelty and substantive new developments (0–10 pts)
+  let novelty = 7;
+  if (
+    /\b(new|proposes|adopts|announces|completes|agrees|files|rules|issues|launches|introduces|terminates|approves|charges)\b/i.test(
+      title
+    )
+  ) {
+    novelty += 2;
+  }
+  if (summary.length >= 140 || contentRaw.length >= 400) {
+    novelty += 1;
+  }
+  novelty = Math.min(10, novelty);
+
+  // Criterion 6: Source credibility and factual evidence (0–10 pts)
+  const repScore = scoreSourceReputation(item.url || '', item.sourceName || '');
+  let sourceCredibilityPts = Math.round((repScore / 100) * 10);
+  if (item.sourceType === 'primary_regulatory') {
+    sourceCredibilityPts = 10;
+  } else if (repScore >= 88) {
+    sourceCredibilityPts = Math.max(9, sourceCredibilityPts);
+  }
+  sourceCredibilityPts = Math.max(4, Math.min(10, sourceCredibilityPts));
+
+  // Criterion 7: Long-term significance (0–5 pts)
+  let longTermSignificance = 3;
+  if (
+    /\b(precedent|framework|structural|amendment|statute|constitutional|doctrine|rulemaking|reform|cross-border|billion|overhaul)\b/i.test(
+      blob
+    )
+  ) {
+    longTermSignificance = 5;
+  } else if (matchedFirmIds.length > 0 || item.sourceType === 'primary_regulatory') {
+    longTermSignificance = 4;
   }
 
-  // 5. Recency Bonus
-  const pubDate = new Date(item.publishedAt || Date.now());
-  const ageHours = (Date.now() - pubDate.getTime()) / (1000 * 60 * 60);
-  if (ageHours >= 0 && ageHours <= 48) {
-    score += 6;
-  }
+  const rawTotal =
+    realWorldImpact +
+    legalRegulatory +
+    financialMateriality +
+    categoryRelevance +
+    novelty +
+    sourceCredibilityPts +
+    longTermSignificance;
 
-  const finalScore = Math.max(10, Math.min(99, Math.round(score)));
+  const finalScore = Math.max(10, Math.min(99, Math.round(rawTotal)));
+  const breakdown = {
+    realWorldImpact,
+    legalRegulatory,
+    financialMateriality,
+    categoryRelevance,
+    novelty,
+    sourceCredibility: sourceCredibilityPts,
+    longTermSignificance,
+  };
+
   return {
     score: finalScore,
-    eligible: finalScore >= 48,
-    rejectionReason: finalScore < 48 ? 'Insufficient commercial or legal significance' : null,
+    eligible: finalScore >= 70,
+    breakdown,
+    rejectionReason: finalScore < 70 ? `Below 70 quality threshold (scored ${finalScore}/100)` : null,
   };
 }
 

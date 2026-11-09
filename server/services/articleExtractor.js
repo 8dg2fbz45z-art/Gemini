@@ -2,33 +2,70 @@ import { db } from '../db.js';
 import { CATEGORIES } from '../data/verifiedRegistries.js';
 
 /**
- * Tiered Source Reputation Scorer (0–100)
- * - Places top-tier financial/legal publications (Reuters, FT, Bloomberg, WSJ, NYT, CNBC,
- *   The Economist, LiveLaw, Bar & Bench, Economic Times, Indian Express, Mint), primary regulators,
- *   Vault 10 law firms, SCOTUSblog, and Harvard Forum in the SAME top tier (92).
- * - Never prioritizes Harvard blog above top-tier publications like Reuters, FT, Bloomberg, WSJ, or NYT.
+ * Paywalled Domains Blacklist
+ * Avoids linking to or ingesting paywalled sources that block full reading and produce incomplete summaries.
  */
-const TIER_1_DOMAINS_AND_PUBLISHERS = [
-  'reuters.com', 'reuters',
-  'ft.com', 'financial times',
-  'bloomberg.com', 'bloomberg',
-  'wsj.com', 'wall street journal',
-  'nytimes.com', 'new york times',
+export const PAYWALLED_DOMAINS_AND_PUBLISHERS = [
+  'nytimes.com',
+  'new york times',
+  'wsj.com',
+  'wall street journal',
+  'ft.com',
+  'financial times',
+  'bloomberg.com',
+  'bloomberg',
+  'economist.com',
+  'the economist',
+  'barrons.com',
+  'barrons',
+  'law360.com',
+  'law360',
+];
+
+export function isPaywalledSource(url = '', publisherName = '', title = '') {
+  const { publisher: headlinePub } = extractPublisherFromHeadline(title || '');
+  const blob = `${url} ${publisherName} ${headlinePub}`.toLowerCase();
+  return PAYWALLED_DOMAINS_AND_PUBLISHERS.some((pw) => blob.includes(pw));
+}
+
+/**
+ * Tiered Source Reputation Scorer (0–100)
+ * - Tier 1 (92): Open, non-paywalled high-substance sources requested by user:
+ *   CNBC, Associated Press, The Guardian, TechCrunch, Finshots, MediaNama, Rest of World,
+ *   Lawfare, Tech Policy Press, Tax Foundation, JURIST, Mondaq, SEBI, US SEC,
+ *   European Commission Competition, The Hindu, The Indian Express, Reuters, Yahoo News/Finance,
+ *   plus primary regulators (RBI, CCI, Federal Reserve) and direct Vault 10 law firm memoranda.
+ * - Tier 2 (78): Established open trade & business wires.
+ * - Tertiary Tier (55): Harvard Law School Forum on Corporate Governance (kept strictly as tertiary).
+ * - Paywalled (0): Excluded.
+ */
+const TIER_1_OPEN_DOMAINS_AND_PUBLISHERS = [
   'cnbc.com', 'cnbc',
-  'economist.com', 'the economist',
+  'apnews.com', 'associated press',
+  'theguardian.com', 'the guardian',
+  'techcrunch.com', 'techcrunch',
+  'finshots.in', 'finshots',
+  'medianama.com', 'medianama',
+  'restofworld.org', 'rest of world',
+  'lawfaremedia.org', 'lawfare',
+  'techpolicy.press', 'tech policy press',
+  'taxfoundation.org', 'tax foundation',
+  'jurist.org', 'jurist',
+  'mondaq.com', 'mondaq',
+  'sebi.gov.in', 'sebi',
   'sec.gov', 'u.s. securities and exchange commission',
+  'ec.europa.eu', 'european commission',
+  'thehindu.com', 'the hindu',
+  'indianexpress.com', 'indian express',
+  'reuters.com', 'reuters',
+  'finance.yahoo.com', 'news.yahoo.com', 'yahoo finance', 'yahoo news',
   'federalreserve.gov', 'federal reserve',
   'supremecourt.gov', 'scotusblog.com', 'scotusblog',
-  'justice.gov', 'ftc.gov', 'treasury.gov', 'ec.europa.eu',
+  'justice.gov', 'ftc.gov', 'treasury.gov',
   'rbi.org.in', 'reserve bank of india',
-  'sebi.gov.in', 'sci.gov.in', 'cci.gov.in',
+  'sci.gov.in', 'cci.gov.in',
   'livelaw.in', 'livelaw',
   'barandbench.com', 'bar & bench', 'bar and bench',
-  'economictimes.indiatimes.com', 'economic times',
-  'indianexpress.com', 'indian express',
-  'livemint.com', 'mint',
-  'thehindu.com', 'the hindu',
-  'corpgov.law.harvard.edu', 'harvard law school forum',
   'wachtell.com', 'wachtell',
   'cravath.com', 'cravath',
   'skadden.com', 'skadden',
@@ -47,16 +84,12 @@ const TIER_1_DOMAINS_AND_PUBLISHERS = [
 ];
 
 const TIER_2_DOMAINS_AND_PUBLISHERS = [
-  'apnews.com', 'associated press',
-  'law.com', 'american lawyer', 'national law journal',
   'globallegalpost.com', 'global legal post',
   'privateequityinternational.com', 'pei',
   'buyoutsinsider.com', 'buyouts',
-  'law360.com', 'law360',
   'axios.com', 'axios',
   'semafor.com', 'semafor',
   'politico.com', 'politico',
-  'finance.yahoo.com', 'yahoo finance',
   'bisnow.com', 'bisnow',
   'prnewswire.com', 'pr newswire',
   'businesswire.com', 'business wire',
@@ -64,7 +97,11 @@ const TIER_2_DOMAINS_AND_PUBLISHERS = [
   'forbes.com', 'forbes',
   'fortune.com', 'fortune',
   'marketwatch.com', 'marketwatch',
-  'barrons.com', 'barrons',
+];
+
+const TERTIARY_DOMAINS_AND_PUBLISHERS = [
+  'corpgov.law.harvard.edu',
+  'harvard law school forum',
 ];
 
 export function decodeDirectUrl(rawUrl = '') {
@@ -105,13 +142,19 @@ export function extractPublisherFromHeadline(title = '') {
 
 export function scoreSourceReputation(url = '', publisherName = '') {
   const resolvedUrl = decodeDirectUrl(url);
+  if (isPaywalledSource(resolvedUrl, publisherName)) {
+    return 0;
+  }
+
   const blob = `${resolvedUrl} ${publisherName}`.toLowerCase();
 
-  let baseScore = 62;
-  if (TIER_1_DOMAINS_AND_PUBLISHERS.some((k) => blob.includes(k))) {
+  let baseScore = 64;
+  if (TIER_1_OPEN_DOMAINS_AND_PUBLISHERS.some((k) => blob.includes(k))) {
     baseScore = 92;
   } else if (TIER_2_DOMAINS_AND_PUBLISHERS.some((k) => blob.includes(k))) {
     baseScore = 78;
+  } else if (TERTIARY_DOMAINS_AND_PUBLISHERS.some((k) => blob.includes(k))) {
+    baseScore = 55;
   }
 
   // Prefer direct resolved publisher URLs over opaque Google News redirect wrappers
@@ -119,11 +162,11 @@ export function scoreSourceReputation(url = '', publisherName = '') {
     baseScore -= 28;
   }
 
-  return Math.max(10, Math.min(98, baseScore));
+  return Math.max(0, Math.min(98, baseScore));
 }
 
 /**
- * Selects strictly 1 external URL representing the highest-reputation coverage for the article.
+ * Selects strictly 1 external URL representing the highest-reputation non-paywalled coverage for the article.
  */
 export function selectBestArticleUrl(currentUrl = '', currentSource = '', candidates = []) {
   const { publisher: headlinePub } = extractPublisherFromHeadline(currentSource);
@@ -134,7 +177,7 @@ export function selectBestArticleUrl(currentUrl = '', currentSource = '', candid
       score: scoreSourceReputation(currentUrl, headlinePub || currentSource),
     },
     ...candidates
-      .filter((c) => c && c.url)
+      .filter((c) => c && c.url && !isPaywalledSource(c.url, c.sourceName || ''))
       .map((c) => {
         const direct = decodeDirectUrl(c.url);
         return {
@@ -143,7 +186,7 @@ export function selectBestArticleUrl(currentUrl = '', currentSource = '', candid
           score: scoreSourceReputation(direct, c.sourceName || ''),
         };
       }),
-  ].filter((opt) => Boolean(opt.url));
+  ].filter((opt) => Boolean(opt.url) && opt.score > 0);
 
   allOptions.sort((a, b) => b.score - a.score);
   return allOptions[0] || { url: currentUrl, sourceName: currentSource, score: 50 };

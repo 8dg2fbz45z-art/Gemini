@@ -17,6 +17,8 @@ import {
   getGeminiConfig,
   getOrGenerateArticleAnalysis,
   generateWeeklyDigest,
+  identifyOrExploreArticleConcept,
+  chatAboutArticleConcept,
 } from './services/llmProcessor.js';
 
 const app = express();
@@ -40,6 +42,13 @@ function formatArticleRow(row, allFirmsMap, analysisMap, clusterCountsMap) {
     ? clusterCountsMap.get(row.story_cluster_id) || 1
     : 1;
 
+  let scoreBreakdown = {};
+  try {
+    scoreBreakdown = JSON.parse(row.score_breakdown_json || '{}');
+  } catch {
+    scoreBreakdown = {};
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -51,6 +60,7 @@ function formatArticleRow(row, allFirmsMap, analysisMap, clusterCountsMap) {
     fetchedAt: row.fetched_at,
     categoryId: row.category_id,
     significanceScore: row.significance_score,
+    scoreBreakdown,
     whyThisMatters: row.why_this_matters,
     summary: row.summary,
     isSample: Boolean(row.is_sample),
@@ -511,6 +521,38 @@ app.post('/api/articles/:id/analyze', async (req, res) => {
 });
 
 /**
+ * POST /api/articles/:id/concept
+ * On-demand Concept Identifier & Explorer for a specific article based on its summary.
+ */
+app.post('/api/articles/:id/concept', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { forceRefresh = false } = req.body || {};
+    const result = await identifyOrExploreArticleConcept(id, { forceRefresh: Boolean(forceRefresh) });
+    res.json(result);
+  } catch (err) {
+    console.error('Error in POST /api/articles/:id/concept:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/articles/:id/concept-chat
+ * Interactive chatbox endpoint to ask Gemini follow-up questions about the article's core concept.
+ */
+app.post('/api/articles/:id/concept-chat', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { question = '', history = [] } = req.body || {};
+    const result = await chatAboutArticleConcept(id, { question, history });
+    res.json(result);
+  } catch (err) {
+    console.error('Error in POST /api/articles/:id/concept-chat:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /api/refresh
  * Triggers live RSS ingestion from public sources and proactively analyzes top flagship stories if Gemini key is set.
  */
@@ -895,9 +937,17 @@ app.listen(PORT, '0.0.0.0', async () => {
       setSetting('gemini_model_flash_migrated', 'true');
     }
     db.prepare(
-      `DELETE FROM article_analyses WHERE analysis_json LIKE '%this development falls within CrimsonBrief%'`
+      `DELETE FROM article_analyses
+       WHERE analysis_json LIKE '%this development falls within CrimsonBrief%'
+          OR analysis_json LIKE '%Fiduciary Standard of Review, Deal Protection Devices & Regulatory Risk Allocation%'
+          OR analysis_json LIKE '%Liability Management Exercises (LMEs), Covenant Stripping & Capital Rules%'
+          OR analysis_json LIKE '%Securities Offering Liability, Materiality & Forward-Looking Disclosures%'
+          OR analysis_json LIKE '%Private Fund LP/GP Governance, Side Letters & Fee/Expense Allocation%'
+          OR analysis_json LIKE '%AI Foundation Model Governance, Copyright Fair Use & Algorithmic Antitrust%'
+          OR analysis_json LIKE '%Leveraged Buyout (LBO) Structuring, Sponsor Control & Exit Pathways%'
+          OR analysis_json LIKE '%Post-Loper Bright Administrative Law, Separation of Powers & Cross-Border Enforcement%'`
     ).run();
-    pruneExcessArticlesPerCategory(15);
+    pruneExcessArticlesPerCategory(8);
   } catch (err) {
     console.error('[CrimsonBrief Init] Database initialization error:', err.message);
   }

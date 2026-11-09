@@ -10,6 +10,7 @@ export default function CategoryFeed({
   watchedFirmsOnly,
   searchQuery,
   articles = [],
+  maxBriefsPerTopic = 8,
   isLoading,
   onBackToGrid,
   onSelectFirm,
@@ -19,7 +20,8 @@ export default function CategoryFeed({
   const activeCategory = categories.find((c) => c.id === selectedCategoryId) || null;
   const activeFirm = lawFirms.find((f) => f.id === selectedFirmId) || null;
   const watchedFirms = lawFirms.filter((f) => f.isWatched);
-  const visibleArticles = articles.slice(0, 15);
+  const hardLimit = Math.min(8, Math.max(6, Number(maxBriefsPerTopic) || 8));
+  const visibleArticles = articles.slice(0, hardLimit);
 
   const formatDate = (iso) => {
     try {

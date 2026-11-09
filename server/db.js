@@ -201,6 +201,7 @@ const SCHEMA_STATEMENTS = [
     verified_professor_id TEXT DEFAULT NULL,
     story_cluster_id TEXT DEFAULT NULL,
     matched_firms_json TEXT DEFAULT '[]',
+    score_breakdown_json TEXT DEFAULT '{}',
     read_status TEXT DEFAULT 'unread',
     last_read_at TEXT DEFAULT NULL,
     is_bookmarked INTEGER DEFAULT 0
@@ -264,6 +265,11 @@ const SCHEMA_STATEMENTS = [
 // Immediately ensure local SQLite tables exist synchronously on module load
 for (const stmt of SCHEMA_STATEMENTS) {
   rawDb.exec(stmt);
+}
+try {
+  rawDb.exec(`ALTER TABLE articles ADD COLUMN score_breakdown_json TEXT DEFAULT '{}'`);
+} catch {
+  // Column already exists
 }
 
 /**

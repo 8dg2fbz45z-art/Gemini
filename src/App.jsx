@@ -13,7 +13,7 @@ export default function App() {
     fontSize: 'normal', // 'normal' | 'large' | 'xlarge'
     fontFamily: 'editorial', // 'editorial' | 'sans'
     accessibilityMode: false,
-    maxBriefsPerTopic: 15,
+    maxBriefsPerTopic: 8,
   });
   const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' | 'feed' | 'reader'
   const [bootstrapData, setBootstrapData] = useState(null);
@@ -413,6 +413,7 @@ export default function App() {
             includeSamples={includeSamples}
             searchQuery={searchQuery}
             articles={articles}
+            maxBriefsPerTopic={uiSettings.maxBriefsPerTopic}
             isLoading={isLoadingFeed}
             onBackToGrid={() => setActiveView('dashboard')}
             onSelectCategory={setSelectedCategoryId}
