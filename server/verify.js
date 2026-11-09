@@ -114,10 +114,14 @@ async function runVerification() {
   assert.strictEqual(relatedFollowUp.storyClusterId, 'cluster-delaware-controller-governance', 'Related development must cluster into the same story timeline');
   console.log('✓ [5/6] Deduplication & Story Clustering verified.');
 
-  // 6. Verify 6-Part Deep Analysis & Weekly Intelligence Digest
-  const analysisRes = await getOrGenerateArticleAnalysis('sample-corp-ma-1');
+  // 6. Verify 6-Part Deep Analysis (with 150–300 word summary + separate practiceNote) & Weekly Intelligence Digest
+  const firstLiveArticle = db.prepare('SELECT id FROM articles ORDER BY significance_score DESC LIMIT 1').get();
+  const analysisRes = await getOrGenerateArticleAnalysis(firstLiveArticle.id, { forceRegenerate: true });
   const a = analysisRes.analysis;
-  assert.ok(a.detailedOverview?.narrative?.length > 0, 'Section A (Detailed Overview) present');
+  const summaryWordCount = (a.detailedOverview?.narrative || []).join(' ').trim().split(/\s+/).filter(Boolean).length;
+  assert.ok(a.detailedOverview?.narrative?.length >= 2, 'Section A (Detailed Overview multi-paragraph narrative) present');
+  assert.ok(summaryWordCount >= 150 && summaryWordCount <= 300, `Expected summary word count between 150 and 300, got ${summaryWordCount}`);
+  assert.ok(a.detailedOverview?.practiceNote, 'Separate 1-2 line practiceNote present');
   assert.ok(a.conceptExplainer?.beginner && a.conceptExplainer?.intermediate && a.conceptExplainer?.advanced, 'Section B (3-Depth Concept Explainer) present');
   assert.ok(a.commercialImplications?.lawFirmAdvisoryRole, 'Section C (Commercial Implications) present');
   assert.ok(a.academicSynergies?.hlsCourses?.length > 0, 'Section D (Academic Synergies) present');

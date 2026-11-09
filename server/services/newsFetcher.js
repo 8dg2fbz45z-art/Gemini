@@ -11,6 +11,11 @@ import {
   deduplicateAndAssignCluster,
   normalizeUrl,
 } from './curationFilter.js';
+import {
+  cleanHtmlPreserveParagraphs,
+  extractPublisherFromHeadline,
+  enrichArticleContentIfNeeded,
+} from './articleExtractor.js';
 
 const parser = new Parser({
   timeout: 8500,
@@ -94,9 +99,16 @@ export async function ingestLivePublicFeeds() {
       const url = normalizeUrl(rawItem.link || rawItem.guid || '');
       if (!title || !url) continue;
 
-      const summaryText = cleanHtml(rawItem.contentSnippet || rawItem.summary || rawItem.content || '').slice(0, 520);
-      const fullContent = cleanHtml(rawItem['content:encoded'] || rawItem.content || rawItem.summary || summaryText);
-      const author = cleanHtml(rawItem.creator || rawItem.author || rawItem['dc:creator'] || source.name);
+      const summaryText = cleanHtml(rawItem.contentSnippet || rawItem.summary || rawItem.content || '').slice(0, 650);
+      const fullContent =
+        cleanHtmlPreserveParagraphs(rawItem['content:encoded'] || rawItem.content || rawItem.summary || '') ||
+        summaryText;
+      const { publisher: extractedPublisher } = extractPublisherFromHeadline(title);
+      const rawCreator = cleanHtml(rawItem.creator || rawItem.author || rawItem['dc:creator'] || '');
+      const author =
+        rawCreator && rawCreator.toLowerCase() !== source.name.toLowerCase()
+          ? rawCreator
+          : extractedPublisher || '';
       const publishedAt = rawItem.isoDate || (rawItem.pubDate ? new Date(rawItem.pubDate).toISOString() : nowIso);
 
       const candidate = {
@@ -182,6 +194,20 @@ export async function ingestLivePublicFeeds() {
         });
       }
     }
+  }
+
+  // Proactively enrich up to 8 newly inserted articles with full-text paragraphs & best reputed URL
+  if (stats.newlyInsertedIds.length > 0) {
+    const newRows = db
+      .prepare(
+        `SELECT * FROM articles WHERE id IN (${stats.newlyInsertedIds
+          .slice(0, 8)
+          .map(() => '?')
+          .join(',')}) ORDER BY significance_score DESC`
+      )
+      .all(...stats.newlyInsertedIds.slice(0, 8));
+
+    await Promise.allSettled(newRows.map((r) => enrichArticleContentIfNeeded(r)));
   }
 
   setSetting('last_rss_refresh', nowIso);

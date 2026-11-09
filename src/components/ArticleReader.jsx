@@ -180,6 +180,12 @@ export default function ArticleReader({
                 <p key={i}>{para}</p>
               ))}
             </div>
+
+            {overview.practiceNote && (
+              <div className="pt-3 border-t border-stone-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {overview.practiceNote}
+              </div>
+            )}
           </div>
         )}
 

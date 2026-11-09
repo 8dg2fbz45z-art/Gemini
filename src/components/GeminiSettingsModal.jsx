@@ -21,7 +21,7 @@ export default function GeminiSettingsModal({
   onToggleDarkMode,
 }) {
   const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState(aiStatus?.model || 'gemini-2.5-pro');
+  const [model, setModel] = useState(aiStatus?.model || 'gemini-2.5-flash');
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!isOpen) return null;
@@ -205,11 +205,11 @@ export default function GeminiSettingsModal({
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-stone-300 dark:border-slate-700"
                 >
-                  <option value="gemini-2.5-pro">
-                    gemini-2.5-pro (Default — Deep Legal &amp; Commercial Reasoning)
-                  </option>
                   <option value="gemini-2.5-flash">
-                    gemini-2.5-flash (Fast Free-Tier Model)
+                    gemini-2.5-flash (Default — Fast &amp; Token-Efficient)
+                  </option>
+                  <option value="gemini-2.5-pro">
+                    gemini-2.5-pro (Deep Legal &amp; Commercial Reasoning)
                   </option>
                 </select>
               </div>

@@ -402,6 +402,7 @@ app.get('/api/articles/:id', async (req, res) => {
 
     const { allFirmsMap, analysisMap, clusterCountsMap } = getLookupMaps();
     const analysisResult = await getOrGenerateArticleAnalysis(id);
+    const updatedRow = db.prepare('SELECT * FROM articles WHERE id = ?').get(id) || row;
 
     // Refresh lookup map entry if analysis was newly generated
     analysisMap.set(id, {
@@ -409,7 +410,7 @@ app.get('/api/articles/:id', async (req, res) => {
       isRuleGroundedFallback: Boolean(analysisResult.analysis?.isRuleGroundedFallback),
     });
 
-    const formattedArticle = formatArticleRow(row, allFirmsMap, analysisMap, clusterCountsMap);
+    const formattedArticle = formatArticleRow(updatedRow, allFirmsMap, analysisMap, clusterCountsMap);
 
     // Progressive Learning check: Does the user already have this concept in their Personal Glossary?
     const conceptTerm = analysisResult.analysis?.conceptExplainer?.conceptTerm || '';
@@ -889,6 +890,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`CrimsonBrief API Server listening on http://0.0.0.0:${PORT}`);
   try {
     await initializeDatabase();
+    if (!getSetting('gemini_model_flash_migrated')) {
+      setSetting('gemini_model', 'gemini-2.5-flash');
+      setSetting('gemini_model_flash_migrated', 'true');
+    }
+    db.prepare(
+      `DELETE FROM article_analyses WHERE analysis_json LIKE '%this development falls within CrimsonBrief%'`
+    ).run();
     pruneExcessArticlesPerCategory(15);
   } catch (err) {
     console.error('[CrimsonBrief Init] Database initialization error:', err.message);

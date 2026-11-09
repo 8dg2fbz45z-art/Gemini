@@ -45,7 +45,7 @@ ARTICLE METADATA:
 - Category: ${category.name} (${category.id})
 - Authorship Verification Status: ${article.contributor_type}
 - Matched Law Firms: ${firmContext}
-- Raw Summary / Content: ${article.content_raw || article.summary}
+- Raw Summary / Content: ${(article.content_raw || article.summary || '').slice(0, 7000)}
 
 VERIFIED HARVARD LAW SCHOOL FACULTY & COURSES REGISTRY FOR THIS SECTOR:
 ${JSON.stringify(
@@ -67,15 +67,22 @@ ${JSON.stringify(VERIFIED_PEER_INSTITUTIONS, null, 2)}
 PROGRESSIVE LEARNING CONTEXT:
 ${progressiveContext}
 
+CRITICAL ARTICLE SUMMARY INSTRUCTIONS:
+1. "detailedOverview.narrative" MUST be a comprehensive, self-contained summary of WHAT HAPPENED IN THE ARTICLE ITSELF so the reader does not need to open the external article link to understand the full story.
+2. Keep the total word count of "detailedOverview.narrative" (across its 2 to 3 paragraphs) strictly between 150 and 300 words.
+3. Focus "detailedOverview.narrative" on the concrete facts, parties, numbers/deal values, regulatory or judicial actions, arguments, and takeaways from the article. Do NOT pad "narrative" with generic boilerplate about CrimsonBrief's coverage or law firm rankings.
+4. Put the brief category and law-firm practice context in the separate 1-2 line "detailedOverview.practiceNote" field (which is NOT counted toward the 150-300 word article summary).
+
 RETURN STRICT JSON WITH THIS EXACT STRUCTURE:
 {
   "whyThisMatters": "1-2 sentence incisive explanation of why this development is commercially and legally significant.",
   "detailedOverview": {
     "narrative": [
-      "Paragraph 1: Substantive account of the development, key parties, transaction values or regulatory scope, and current procedural posture.",
-      "Paragraph 2: Doctrinal, statutory, or market background required to understand why this development breaks new ground.",
-      "Paragraph 3: Key legal friction points, counsel roles, and what happens next."
+      "Paragraph 1: Detailed account of what happened in the article, the specific parties/regulators/courts involved, transaction figures or rule changes, and immediate outcome.",
+      "Paragraph 2: Key mechanics, terms, arguments, or factual background reported in the article.",
+      "Paragraph 3: Key takeaways and what happens next according to the report (ensure Paragraphs 1-3 combined total strictly 150-300 words)."
     ],
+    "practiceNote": "Short 1-2 line note on the practice area and counsel relevance (excluded from the 150-300 word summary count).",
     "partiesAndCounsel": [
       "List verified parties, regulators, and law firms involved (or clearly label typical practice counsel roles if specific firms are not disclosed in the raw text)."
     ],

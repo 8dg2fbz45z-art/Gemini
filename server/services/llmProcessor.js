@@ -9,10 +9,16 @@ import {
   buildArticleAnalysisPrompt,
   buildWeeklyDigestPrompt,
 } from './prompts.js';
+import {
+  enrichArticleContentIfNeeded,
+  buildBoundedArticleSummary,
+  buildCompactPracticeNote,
+  countWords,
+} from './articleExtractor.js';
 
 export function getGeminiConfig() {
   const apiKey = process.env.GEMINI_API_KEY || getSetting('gemini_api_key', '');
-  const model = getSetting('gemini_model', 'gemini-2.5-pro');
+  const model = getSetting('gemini_model', 'gemini-2.5-flash');
   return {
     apiKey: apiKey.trim(),
     hasApiKey: Boolean(apiKey && apiKey.trim().length > 10),
@@ -26,12 +32,12 @@ async function callGeminiJson(promptText, systemInstruction = SYSTEM_INSTRUCTION
     throw new Error('NO_GEMINI_API_KEY');
   }
 
-  // Try preferred model (gemini-2.5-pro) first; if the user's free-tier key hits a Pro billing/quota restriction,
-  // automatically cascade to free-tier flash models so the user never has to pay or set up billing.
+  // Prioritize fast, token-efficient gemini-2.5-flash by default, with automatic cascade
   const modelCascade = [
-    model,
+    model || 'gemini-2.5-flash',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-2.5-pro',
   ].filter((m, idx, arr) => Boolean(m) && arr.indexOf(m) === idx);
 
   let lastError = null;
@@ -193,17 +199,28 @@ function buildRuleGroundedAnalysis(article, matchedFirms = []) {
 
   const cData = sectorConcepts[article.category_id] || sectorConcepts['corporate-ma'];
 
+  const rawSourceParagraphs = (article.content_raw || article.summary || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const boundedNarrative = buildBoundedArticleSummary(
+    rawSourceParagraphs,
+    article,
+    matchedFirms,
+    150,
+    300
+  );
+  const practiceNote = buildCompactPracticeNote(article, matchedFirms);
+
   return {
     modelUsed: 'Rule-Grounded Registry Synthesis (Add Gemini API Key for Live Neural Generation)',
     isRuleGroundedFallback: true,
     generatedAt: nowIso,
     whyThisMatters: article.why_this_matters,
     detailedOverview: {
-      narrative: [
-        article.content_raw || article.summary || article.title,
-        `Published by ${article.source_name}${article.author ? ` (${article.author})` : ''}, this development falls within CrimsonBrief’s ${category.name} coverage (${category.subtitle}).`,
-        `From a practice perspective, developments of this profile directly implicate corporate advisory, regulatory strategy, and transactional structuring across leading US law firms (${firmListText}).`,
-      ],
+      narrative: boundedNarrative,
+      practiceNote,
       partiesAndCounsel: [
         `Source Attribution: ${article.source_name} (${article.source_type.replace('_', ' ')})`,
         `Tracked Law Firm Context: ${firmListText}`,
@@ -284,27 +301,37 @@ function buildRuleGroundedAnalysis(article, matchedFirms = []) {
  * Persistently caches results in SQLite `article_analyses`.
  */
 export async function getOrGenerateArticleAnalysis(articleId, { forceRegenerate = false } = {}) {
+  let article = db.prepare('SELECT * FROM articles WHERE id = ?').get(articleId);
+  if (!article) {
+    throw new Error(`Article ${articleId} not found`);
+  }
+
+  // Always ensure the article has enriched paragraphs and the single best reputable URL
+  article = await enrichArticleContentIfNeeded(article);
+
   if (!forceRegenerate) {
     const cached = db
       .prepare('SELECT * FROM article_analyses WHERE article_id = ?')
       .get(articleId);
     if (cached) {
       const parsed = JSON.parse(cached.analysis_json);
-      // If the user now added a Gemini API key and the cached version was only a rule-grounded fallback,
-      // keep serving cached unless forceRegenerate is requested or it's explicitly triggered via /analyze
-      return {
-        articleId,
-        modelUsed: cached.model_used,
-        generatedAt: cached.generated_at,
-        analysis: parsed,
-        fromCache: true,
-      };
-    }
-  }
+      const narrativeArr = parsed?.detailedOverview?.narrative || [];
+      const joinedNarrative = narrativeArr.join(' ');
+      const narrativeWords = countWords(joinedNarrative);
+      const hasLegacyBoilerplate =
+        joinedNarrative.includes('this development falls within CrimsonBrief’s') ||
+        joinedNarrative.includes('From a practice perspective, developments of this profile directly implicate');
 
-  const article = db.prepare('SELECT * FROM articles WHERE id = ?').get(articleId);
-  if (!article) {
-    throw new Error(`Article ${articleId} not found`);
+      if (!hasLegacyBoilerplate && narrativeWords >= 145 && narrativeWords <= 315 && parsed?.detailedOverview?.practiceNote) {
+        return {
+          articleId,
+          modelUsed: cached.model_used,
+          generatedAt: cached.generated_at,
+          analysis: parsed,
+          fromCache: true,
+        };
+      }
+    }
   }
 
   const matchedFirmIds = JSON.parse(article.matched_firms_json || '[]');
@@ -322,8 +349,36 @@ export async function getOrGenerateArticleAnalysis(articleId, { forceRegenerate 
     try {
       const prompt = buildArticleAnalysisPrompt(article, matchedFirms, knownGlossaryTerms);
       const geminiResult = await callGeminiJson(prompt);
+      const rawParsed = geminiResult.parsed || {};
+      const geminiNarrative = Array.isArray(rawParsed?.detailedOverview?.narrative)
+        ? rawParsed.detailedOverview.narrative
+        : [];
+      const geminiWordCount = countWords(geminiNarrative.join(' '));
+
+      // Enforce 150-300 word bound on the article summary narrative
+      const finalNarrative =
+        geminiWordCount >= 145 && geminiWordCount <= 305
+          ? geminiNarrative
+          : buildBoundedArticleSummary(
+              geminiNarrative.length
+                ? geminiNarrative
+                : (article.content_raw || article.summary || '').split(/\n\s*\n/),
+              article,
+              matchedFirms,
+              150,
+              300
+            );
+
+      const finalPracticeNote =
+        rawParsed?.detailedOverview?.practiceNote || buildCompactPracticeNote(article, matchedFirms);
+
       analysisObj = {
-        ...geminiResult.parsed,
+        ...rawParsed,
+        detailedOverview: {
+          ...(rawParsed.detailedOverview || {}),
+          narrative: finalNarrative,
+          practiceNote: finalPracticeNote,
+        },
         modelUsed: geminiResult.modelUsed,
         isRuleGroundedFallback: false,
         generatedAt: new Date().toISOString(),
